@@ -16,6 +16,7 @@ const perfectionistRules = {
             order: "asc",
             sortSideEffects: false,
             newlinesBetween: 0,
+            internalPattern: ["^@/"],
             groups: [
                 {
                     group: [

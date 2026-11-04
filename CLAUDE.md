@@ -48,7 +48,7 @@ The app is a SPA admin for a small warehouse. Folder structure is defined stage 
   - Two groups. First: packages and Node built-ins, preceded by the comment `// outsource dependencies`. Then one blank line. Second: relative imports, preceded by the comment `// local dependencies`. No blank lines inside a group.
   - Within each group, sort import lines by line length, shortest first (type and value imports are sorted together).
   - Inside braces, sort named imports by length, shortest first.
-  - Side-effect imports (e.g. CSS) go first in the local group, right after the `// local dependencies` comment. ESLint does not enforce their position, so follow this rule manually.
+  - Side-effect imports (e.g. `import "./index.css";`, `import "@testing-library/jest-dom/vitest";`) go first in their group, right after the group comment. ESLint does not enforce their position (perfectionist leaves side-effect imports in place because their order can matter, e.g. the CSS cascade), so follow this rule manually.
 
 ```ts
 // outsource dependencies
