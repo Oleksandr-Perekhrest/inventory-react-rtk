@@ -5,6 +5,9 @@ import { cleanup } from "@testing-library/react";
 
 afterEach(cleanup);
 
+// jsdom does not implement scrollTo; TanStack Router calls it for scroll restoration
+window.scrollTo = () => {};
+
 Object.defineProperty(window, "matchMedia", {
     writable: true,
     value: (query: string) => ({
