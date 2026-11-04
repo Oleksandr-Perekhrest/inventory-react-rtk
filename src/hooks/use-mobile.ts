@@ -16,6 +16,7 @@ export function useIsMobile() {
             setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
         };
         mql.addEventListener("change", onChange);
+        // Vendored shadcn code: synchronous initial state read is intentional here.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
         return () => mql.removeEventListener("change", onChange);

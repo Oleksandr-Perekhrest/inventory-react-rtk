@@ -66,11 +66,14 @@ export default defineConfig([
         plugins: {
             perfectionist,
         },
+        rules: perfectionistRules,
+    },
+    {
+        files: ["src/routes/**/*.{ts,tsx}"],
         rules: {
-            ...perfectionistRules,
             "react-refresh/only-export-components": [
                 "error",
-                { allowConstantExport: true },
+                { allowExportNames: ["Route"] },
             ],
         },
     },

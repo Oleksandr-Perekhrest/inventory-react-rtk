@@ -5,8 +5,7 @@ export const Route = createFileRoute("/receiving")({
     component: ReceivingPage,
 });
 
-// eslint-disable-next-line react-refresh/only-export-components
-function ReceivingPage() {
+export function ReceivingPage() {
     return (
         <div className="p-6">
             <h1 className="text-2xl font-semibold">Receiving</h1>
