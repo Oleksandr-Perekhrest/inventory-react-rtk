@@ -51,7 +51,7 @@ const perfectionistRules = {
 };
 
 export default defineConfig([
-    globalIgnores(["dist"]),
+    globalIgnores(["dist", "src/routeTree.gen.ts"]),
     {
         files: ["**/*.{ts,tsx}"],
         extends: [
@@ -66,7 +66,13 @@ export default defineConfig([
         plugins: {
             perfectionist,
         },
-        rules: perfectionistRules,
+        rules: {
+            ...perfectionistRules,
+            "react-refresh/only-export-components": [
+                "error",
+                { allowConstantExport: true },
+            ],
+        },
     },
     {
         files: ["**/*.js"],
