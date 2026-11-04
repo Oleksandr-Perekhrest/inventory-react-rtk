@@ -51,7 +51,7 @@ const perfectionistRules = {
 };
 
 export default defineConfig([
-    globalIgnores(["dist"]),
+    globalIgnores(["dist", "src/routeTree.gen.ts"]),
     {
         files: ["**/*.{ts,tsx}"],
         extends: [
@@ -67,6 +67,13 @@ export default defineConfig([
             perfectionist,
         },
         rules: perfectionistRules,
+    },
+    {
+        // Route files export only `Route` (not components), so fast-refresh rule does not apply
+        files: ["src/routes/**/*.{ts,tsx}"],
+        rules: {
+            "react-refresh/only-export-components": "off",
+        },
     },
     {
         files: ["**/*.js"],
