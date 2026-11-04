@@ -15,5 +15,6 @@ export async function renderWithRouter(path: string) {
         history: createMemoryHistory({ initialEntries: [path] }),
     });
     await router.load();
-    return render(<RouterProvider router={router} />);
+    const result = render(<RouterProvider router={router} />);
+    return { ...result, router };
 }
