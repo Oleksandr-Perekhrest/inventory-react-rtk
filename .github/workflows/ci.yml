@@ -33,7 +33,8 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
-      # pnpm test goes here once Vitest is configured
+      - name: Test
+        run: pnpm test
 
       - name: Build
         run: pnpm build
