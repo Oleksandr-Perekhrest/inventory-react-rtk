@@ -1,0 +1,22 @@
+pre-commit:
+  jobs:
+    - name: eslint-fix
+      glob: "*.{js,ts,tsx}"
+      run: pnpm exec eslint --fix {staged_files}
+      stage_fixed: true
+    - name: prettier-write
+      run: pnpm exec prettier --write --ignore-unknown {staged_files}
+      stage_fixed: true
+
+pre-push:
+  jobs:
+    - name: format-check
+      run: pnpm format:check
+    - name: lint
+      run: pnpm lint
+    - name: typecheck
+      run: pnpm typecheck
+    # - name: test
+    #   run: pnpm test
+    - name: build
+      run: pnpm build

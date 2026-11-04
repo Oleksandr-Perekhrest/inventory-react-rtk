@@ -16,6 +16,7 @@ pnpm format:check   # format with Prettier (check only)
 ```
 
 Use **pnpm** exclusively. Node 24.x is required (see `.nvmrc`). Some scripts are added in upcoming steps; if a script does not exist yet, skip it and say so in the report.
+Node 24 is the shell default (nvm alias). Run `pnpm` commands directly; do not source nvm or run `nvm use`.
 
 ## Stack
 
