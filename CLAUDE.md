@@ -19,19 +19,19 @@ Use **pnpm** exclusively. Node 24.x is required (see `.nvmrc`). Some scripts are
 
 ## Stack
 
-| Layer | Choice |
-|---|---|
-| Build / Language | Vite, React 19, TypeScript 6 (strict), pnpm |
-| State | Redux Toolkit + RTK Query (server data via RTK Query with cache tags; client state in slices) |
-| Styling / UI | Tailwind CSS + shadcn/ui |
-| Forms | TanStack Form + zod |
-| Drag and drop | dnd-kit |
-| Tables | TanStack Table (server-side mode) |
-| Routing | TanStack Router |
-| Mock API | MSW — enabled in dev, tests, and the production build (no backend) |
-| Unit tests | Vitest + React Testing Library + MSW |
-| E2E | Playwright |
-| Hosting | Vercel |
+| Layer            | Choice                                                                                        |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| Build / Language | Vite, React 19, TypeScript 6 (strict), pnpm                                                   |
+| State            | Redux Toolkit + RTK Query (server data via RTK Query with cache tags; client state in slices) |
+| Styling / UI     | Tailwind CSS + shadcn/ui                                                                      |
+| Forms            | TanStack Form + zod                                                                           |
+| Drag and drop    | dnd-kit                                                                                       |
+| Tables           | TanStack Table (server-side mode)                                                             |
+| Routing          | TanStack Router                                                                               |
+| Mock API         | MSW — enabled in dev, tests, and the production build (no backend)                            |
+| Unit tests       | Vitest + React Testing Library + MSW                                                          |
+| E2E              | Playwright                                                                                    |
+| Hosting          | Vercel                                                                                        |
 
 > TypeScript 7 is intentionally not used: typescript-eslint does not support it yet.
 
@@ -47,7 +47,7 @@ The app is a SPA admin for a small warehouse. Folder structure is defined stage 
   - Two groups. First: packages and Node built-ins, preceded by the comment `// outsource dependencies`. Then one blank line. Second: relative imports, preceded by the comment `// local dependencies`. No blank lines inside a group.
   - Within each group, sort import lines by line length, shortest first (type and value imports are sorted together).
   - Inside braces, sort named imports by length, shortest first.
-  - Side-effect imports (e.g. CSS) go last, after the local group, in their original order.
+  - Side-effect imports (e.g. CSS) go first in the local group, right after the `// local dependencies` comment. ESLint does not enforce their position, so follow this rule manually.
 
 ```ts
 // outsource dependencies
