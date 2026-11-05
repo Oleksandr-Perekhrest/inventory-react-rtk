@@ -21,3 +21,11 @@ Object.defineProperty(window, "matchMedia", {
         dispatchEvent: () => false,
     }),
 });
+
+// jsdom does not implement ResizeObserver; Radix Tooltip (Popper) measures its content with it
+class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+}
+globalThis.ResizeObserver ??= ResizeObserverStub;

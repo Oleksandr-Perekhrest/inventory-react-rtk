@@ -1,9 +1,12 @@
 // outsource dependencies
 import type { LucideIcon } from "lucide-react";
-import { Link, useMatchRoute, type LinkProps } from "@tanstack/react-router";
-import { Package, LayoutGrid, ChartColumn, ArrowLeftRight } from "lucide-react";
+import { Link, type LinkProps } from "@tanstack/react-router";
 
 // local dependencies
+import { navItems } from "@/components/layout/navItems";
+import { useActiveNav } from "@/components/layout/useActiveNav";
+import { WarehouseLogo } from "@/components/layout/WarehouseLogo";
+import { SidebarEdgeToggle } from "@/components/layout/SidebarEdgeToggle";
 import {
     Sidebar,
     SidebarMenu,
@@ -11,16 +14,10 @@ import {
     SidebarHeader,
     SidebarContent,
     SidebarMenuItem,
+    SidebarSeparator,
     SidebarMenuButton,
     SidebarGroupContent,
 } from "@/components/ui/sidebar";
-
-const navItems: { to: LinkProps["to"]; label: string; icon: LucideIcon }[] = [
-    { to: "/catalog", label: "Catalog", icon: LayoutGrid },
-    { to: "/receiving", label: "Receiving", icon: Package },
-    { to: "/movements", label: "Movements", icon: ArrowLeftRight },
-    { to: "/dashboard", label: "Dashboard", icon: ChartColumn },
-];
 
 function NavLink({
     to,
@@ -31,11 +28,15 @@ function NavLink({
     label: string;
     icon: LucideIcon;
 }) {
-    const matchRoute = useMatchRoute();
-    const isActive = !!matchRoute({ to, fuzzy: true });
+    const isActive = useActiveNav(to);
     return (
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive}>
+            <SidebarMenuButton
+                asChild
+                isActive={isActive}
+                tooltip={label}
+                className="[&_svg]:size-5 group-data-[collapsible=icon]:[&_svg]:size-6 group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:[&>span]:sr-only"
+            >
                 <Link to={to}>
                     <Icon />
                     <span>{label}</span>
@@ -47,13 +48,12 @@ function NavLink({
 
 export function AppSidebar() {
     return (
-        <Sidebar>
-            <SidebarHeader>
-                <span className="px-2 py-1 text-sm font-semibold">
-                    Warehouse Manager
-                </span>
+        <Sidebar collapsible="icon">
+            <SidebarHeader className="pr-9">
+                <WarehouseLogo />
             </SidebarHeader>
-            <SidebarContent>
+            <SidebarSeparator className="data-horizontal:w-auto" />
+            <SidebarContent className="pr-7">
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>
@@ -64,6 +64,7 @@ export function AppSidebar() {
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
+            <SidebarEdgeToggle />
         </Sidebar>
     );
 }

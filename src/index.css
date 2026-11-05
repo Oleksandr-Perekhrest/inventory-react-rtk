@@ -49,6 +49,8 @@
     --warning-foreground: #92400e;
     --stock-out: #1c1917;
     --stock-out-foreground: #ffffff;
+    --tooltip: #44403c;
+    --tooltip-foreground: #fafaf9;
 }
 
 @theme inline {
@@ -91,6 +93,8 @@
     --color-warning: var(--warning);
     --color-stock-out-foreground: var(--stock-out-foreground);
     --color-stock-out: var(--stock-out);
+    --color-tooltip: var(--tooltip);
+    --color-tooltip-foreground: var(--tooltip-foreground);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
