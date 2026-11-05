@@ -70,7 +70,7 @@ import { formatPrice } from "../../utils/format";
 
 ## UI and theme
 
-- Visual direction "Warehouse", light theme only. Tokens live in `src/index.css` (shadcn tokens plus `warning` and `stock-out`); do not edit the `.dark` block.
+- Visual direction "Warehouse", light theme only. Tokens live in `src/index.css` (shadcn tokens plus `warning`, `stock-out` and `tooltip`); do not edit the `.dark` block.
 - Use theme tokens through Tailwind classes (`bg-card`, `text-muted-foreground`, `bg-warning`, ...). No hex values or arbitrary colors in components.
 - `font-sans` (IBM Plex Sans) for text; `font-mono` (IBM Plex Mono) for SKUs, numbers, breadcrumbs, table headers and status badges.
 - Corners: `rounded-sm` for panels and controls.
