@@ -42,7 +42,7 @@ function NavLink({
                 asChild
                 isActive={isActive}
                 tooltip={label}
-                className="[&_svg]:size-5 group-data-[collapsible=icon]:size-10!"
+                className="[&_svg]:size-5 group-data-[collapsible=icon]:[&_svg]:size-6 group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center"
             >
                 <Link to={to}>
                     <Icon />
@@ -56,11 +56,11 @@ function NavLink({
 export function AppSidebar() {
     return (
         <Sidebar collapsible="icon">
-            <SidebarHeader>
+            <SidebarHeader className="pr-5">
                 <WarehouseLogo />
             </SidebarHeader>
             <SidebarSeparator className="data-horizontal:w-auto" />
-            <SidebarContent>
+            <SidebarContent className="pr-5">
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>

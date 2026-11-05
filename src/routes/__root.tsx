@@ -18,7 +18,7 @@ export function RootLayout() {
             <SidebarProvider
                 style={
                     {
-                        "--sidebar-width-icon": "3.5rem",
+                        "--sidebar-width-icon": "5rem",
                     } as CSSProperties
                 }
             >

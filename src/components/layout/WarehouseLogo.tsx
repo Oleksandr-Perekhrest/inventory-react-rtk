@@ -1,8 +1,6 @@
 // outsource dependencies
+import { cn } from "cn";
 import { Warehouse } from "lucide-react";
-
-// local dependencies
-import { cn } from "@/lib/utils";
 
 export function WarehouseLogo({ small }: { small?: boolean }) {
     return (
