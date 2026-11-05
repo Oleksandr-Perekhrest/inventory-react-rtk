@@ -62,11 +62,19 @@ import { useState, useCallback } from "react";
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 // local dependencies
+import "./styles.css";
 import { api } from "./api";
 import type { Product } from "../types";
 import { formatPrice } from "../../utils/format";
-import "./styles.css";
 ```
+
+## UI and theme
+
+- Visual direction "Warehouse", light theme only. Tokens live in `src/index.css` (shadcn tokens plus `warning` and `stock-out`); do not edit the `.dark` block.
+- Use theme tokens through Tailwind classes (`bg-card`, `text-muted-foreground`, `bg-warning`, ...). No hex values or arbitrary colors in components.
+- `font-sans` (IBM Plex Sans) for text; `font-mono` (IBM Plex Mono) for SKUs, numbers, breadcrumbs, table headers and status badges.
+- Corners: `rounded-sm` for panels and controls.
+- Reference screen: `/design-preview` (`src/components/design-preview/`) shows the catalog layout, panel and table header styles, the stock meter and the LOW/OUT badges. New screens follow it. It is static and will be removed when the real catalog replaces it: never import from it.
 
 ## Working rules
 

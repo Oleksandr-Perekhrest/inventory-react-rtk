@@ -32,9 +32,7 @@ function StockCell({ product }: { product: ProductRow }) {
                 <div
                     className={cn(
                         "h-full",
-                        status === "low"
-                            ? "bg-warning-foreground"
-                            : "bg-muted-foreground",
+                        status === "low" ? "bg-primary" : "bg-muted-foreground",
                     )}
                     style={{ width: `${fillPct}%` }}
                 />

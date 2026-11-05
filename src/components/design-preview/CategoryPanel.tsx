@@ -60,7 +60,7 @@ function TreeRow({ row, query }: { row: CategoryRow; query: string }) {
 
 export function CategoryPanel() {
     return (
-        <div className="flex w-full shrink-0 flex-col gap-2 rounded-sm border bg-card p-3 md:w-64">
+        <div className="flex w-full shrink-0 flex-col gap-2 rounded-sm border bg-card p-3 md:w-64 self-start">
             <span
                 id="categories-label"
                 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
