@@ -1,9 +1,10 @@
 // outsource dependencies
 import type { LucideIcon } from "lucide-react";
-import { Link, useMatchRoute, type LinkProps } from "@tanstack/react-router";
-import { Package, LayoutGrid, ChartColumn, ArrowLeftRight } from "lucide-react";
+import { Link, type LinkProps } from "@tanstack/react-router";
 
 // local dependencies
+import { navItems } from "@/components/layout/navItems";
+import { useActiveNav } from "@/components/layout/useActiveNav";
 import { WarehouseLogo } from "@/components/layout/WarehouseLogo";
 import { SidebarEdgeToggle } from "@/components/layout/SidebarEdgeToggle";
 import {
@@ -18,13 +19,6 @@ import {
     SidebarGroupContent,
 } from "@/components/ui/sidebar";
 
-const navItems: { to: LinkProps["to"]; label: string; icon: LucideIcon }[] = [
-    { to: "/catalog", label: "Catalog", icon: LayoutGrid },
-    { to: "/receiving", label: "Receiving", icon: Package },
-    { to: "/movements", label: "Movements", icon: ArrowLeftRight },
-    { to: "/dashboard", label: "Dashboard", icon: ChartColumn },
-];
-
 function NavLink({
     to,
     label,
@@ -34,8 +28,7 @@ function NavLink({
     label: string;
     icon: LucideIcon;
 }) {
-    const matchRoute = useMatchRoute();
-    const isActive = !!matchRoute({ to, fuzzy: true });
+    const isActive = useActiveNav(to);
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
