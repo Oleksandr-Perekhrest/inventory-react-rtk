@@ -42,7 +42,7 @@ function NavLink({
                 asChild
                 isActive={isActive}
                 tooltip={label}
-                className="[&_svg]:size-5 group-data-[collapsible=icon]:[&_svg]:size-6 group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center"
+                className="[&_svg]:size-5 group-data-[collapsible=icon]:[&_svg]:size-6 group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:[&>span]:sr-only"
             >
                 <Link to={to}>
                     <Icon />
