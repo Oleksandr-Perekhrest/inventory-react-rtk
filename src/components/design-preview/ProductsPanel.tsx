@@ -56,26 +56,28 @@ function StockCell({ product }: { product: ProductRow }) {
     );
 }
 
-function ProductRow({ product }: { product: ProductRow }) {
+function ProductTableRow({ product }: { product: ProductRow }) {
     return (
         <TableRow>
-            <TableCell className="font-mono text-xs text-muted-foreground">
+            <TableCell className="px-3 py-2 font-mono text-xs text-muted-foreground">
                 {product.sku}
             </TableCell>
-            <TableCell className="font-medium">{product.name}</TableCell>
-            <TableCell className="text-muted-foreground">
+            <TableCell className="px-3 py-2 font-medium">
+                {product.name}
+            </TableCell>
+            <TableCell className="px-3 py-2 text-muted-foreground">
                 {product.unit}
             </TableCell>
-            <TableCell>
+            <TableCell className="px-3 py-2">
                 <StockCell product={product} />
             </TableCell>
-            <TableCell className="text-right font-mono tabular-nums">
+            <TableCell className="px-3 py-2 text-right font-mono tabular-nums">
                 {product.min}
             </TableCell>
-            <TableCell className="text-right font-mono tabular-nums">
+            <TableCell className="px-3 py-2 text-right font-mono tabular-nums">
                 {product.price}
             </TableCell>
-            <TableCell className="text-muted-foreground">
+            <TableCell className="px-3 py-2 text-muted-foreground">
                 {product.updated}
             </TableCell>
         </TableRow>
@@ -144,7 +146,10 @@ export function ProductsPanel() {
                     </TableHeader>
                     <TableBody>
                         {PRODUCTS.map((product) => (
-                            <ProductRow key={product.sku} product={product} />
+                            <ProductTableRow
+                                key={product.sku}
+                                product={product}
+                            />
                         ))}
                     </TableBody>
                 </Table>
