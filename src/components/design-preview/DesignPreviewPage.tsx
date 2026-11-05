@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 // local dependencies
 import { Button } from "@/components/ui/button";
 import { CategoryPanel } from "./CategoryPanel";
+import { ProductsPanel } from "./ProductsPanel";
 
 export function DesignPreviewPage() {
     return (
@@ -25,12 +26,7 @@ export function DesignPreviewPage() {
             </div>
             <div className="flex flex-wrap gap-4">
                 <CategoryPanel />
-                <div className="min-w-0 flex-1">
-                    <h1 className="text-2xl font-semibold">Dairy</h1>
-                    <p className="font-mono text-xs uppercase text-muted-foreground">
-                        24 SKU · 3 BELOW MIN
-                    </p>
-                </div>
+                <ProductsPanel />
             </div>
         </div>
     );

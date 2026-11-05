@@ -61,7 +61,10 @@ function TreeRow({ row, query }: { row: CategoryRow; query: string }) {
 export function CategoryPanel() {
     return (
         <div className="flex w-full shrink-0 flex-col gap-2 rounded-sm border bg-card p-3 md:w-64">
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span
+                id="categories-label"
+                className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+            >
                 Categories
             </span>
             <div className="relative">
@@ -75,7 +78,11 @@ export function CategoryPanel() {
                     defaultValue={SEARCH_QUERY}
                 />
             </div>
-            <ul role="tree" className="flex flex-col gap-0.5">
+            <ul
+                role="tree"
+                aria-labelledby="categories-label"
+                className="flex flex-col gap-0.5"
+            >
                 {CATEGORIES.map((cat) => (
                     <TreeRow key={cat.id} row={cat} query={SEARCH_QUERY} />
                 ))}
