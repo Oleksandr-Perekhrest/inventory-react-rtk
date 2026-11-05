@@ -9,7 +9,8 @@ import type { LinkProps } from "@tanstack/react-router";
 // local dependencies
 import { navItems } from "@/components/layout/navItems";
 import { useActiveNav } from "@/components/layout/useActiveNav";
-import { WarehouseLogo } from "@/components/layout/WarehouseLogo";
+import { WarehouseMark } from "@/components/layout/WarehouseLogo";
+import { useActiveNavItem } from "@/components/layout/useActiveNavItem";
 import { Sheet, SheetTitle, SheetContent } from "@/components/ui/sheet";
 
 function MobileNavLink({
@@ -30,6 +31,7 @@ function MobileNavLink({
             onClick={onNavigate}
             className={cn(
                 "flex h-14 w-full items-center gap-4 px-4 text-lg",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
                 isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
             )}
             aria-current={isActive ? "page" : undefined}
@@ -43,16 +45,52 @@ function MobileNavLink({
 export function MobileNav() {
     const [open, setOpen] = useState(false);
     const sheetId = useId();
+    const activeNavItem = useActiveNavItem();
 
     return (
         <>
             <div className="fixed inset-x-0 bottom-0 z-50 flex flex-col border-t border-sidebar-border bg-sidebar text-sidebar-foreground lg:hidden">
                 <div className="flex h-16 items-center justify-between px-4">
-                    <WarehouseLogo small />
+                    <div className="flex items-center gap-3">
+                        <WarehouseMark small />
+                        <nav aria-label="Breadcrumb">
+                            <ol className="flex items-center gap-1.5 font-mono text-sm uppercase tracking-wide">
+                                <li>
+                                    <span
+                                        aria-hidden="true"
+                                        className="text-sidebar-foreground/70"
+                                    >
+                                        WM
+                                    </span>
+                                    <span className="sr-only">
+                                        Warehouse Manager
+                                    </span>
+                                </li>
+                                {activeNavItem && (
+                                    <>
+                                        <li
+                                            aria-hidden="true"
+                                            className="text-sidebar-foreground/70"
+                                        >
+                                            ›
+                                        </li>
+                                        <li>
+                                            <span
+                                                aria-current="page"
+                                                className="font-semibold text-sidebar-foreground"
+                                            >
+                                                {activeNavItem.label}
+                                            </span>
+                                        </li>
+                                    </>
+                                )}
+                            </ol>
+                        </nav>
+                    </div>
                     <button
                         type="button"
                         onClick={() => setOpen(true)}
-                        className="flex size-12 items-center justify-center rounded-sm"
+                        className="flex size-12 items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring"
                         aria-label="Open menu"
                         aria-expanded={open}
                         aria-controls={sheetId}
@@ -74,6 +112,19 @@ export function MobileNav() {
                     className="max-h-[80svh] gap-0 overflow-y-auto rounded-t-sm bg-sidebar p-0 text-sidebar-foreground"
                 >
                     <SheetTitle className="sr-only">Navigation</SheetTitle>
+                    <div className="flex h-14 items-center justify-between px-4">
+                        <span className="font-mono text-xs uppercase tracking-wider text-sidebar-foreground/70">
+                            Menu
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setOpen(false)}
+                            className="flex size-12 items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring"
+                            aria-label="Close menu"
+                        >
+                            <X className="size-7" />
+                        </button>
+                    </div>
                     {navItems.map((item) => (
                         <MobileNavLink
                             key={String(item.to)}
@@ -81,17 +132,6 @@ export function MobileNav() {
                             onNavigate={() => setOpen(false)}
                         />
                     ))}
-                    <div className="flex h-14 items-center justify-between px-4">
-                        <WarehouseLogo small />
-                        <button
-                            type="button"
-                            onClick={() => setOpen(false)}
-                            className="flex size-12 items-center justify-center rounded-sm"
-                            aria-label="Close menu"
-                        >
-                            <X className="size-7" />
-                        </button>
-                    </div>
                     <div
                         className="shrink-0"
                         style={{ height: "env(safe-area-inset-bottom)" }}

@@ -21,7 +21,7 @@ export function RootLayout() {
                 <div className="hidden lg:contents">
                     <AppSidebar />
                 </div>
-                <SidebarInset className="pb-16 lg:pb-0">
+                <SidebarInset className="pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
                     <Outlet />
                 </SidebarInset>
                 <MobileNav />
