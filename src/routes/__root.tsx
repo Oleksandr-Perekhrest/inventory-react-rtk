@@ -1,10 +1,10 @@
 // outsource dependencies
-import { Warehouse } from "lucide-react";
 import type { CSSProperties } from "react";
 import { Outlet, createRootRoute } from "@tanstack/react-router";
 
 // local dependencies
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { WarehouseLogo } from "@/components/layout/WarehouseLogo";
 import { NotFound, AppSidebar } from "@/components/layout/AppSidebar";
 import {
     SidebarInset,
@@ -26,10 +26,7 @@ export function RootLayout() {
                 <SidebarInset>
                     <div className="flex items-center gap-2 border-b px-3 py-2 md:hidden">
                         <SidebarTrigger aria-label="Open menu" />
-                        <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary">
-                            <Warehouse className="size-4 text-sidebar-primary-foreground" />
-                        </div>
-                        <span className="font-semibold">Warehouse Manager</span>
+                        <WarehouseLogo small />
                     </div>
                     <Outlet />
                 </SidebarInset>
