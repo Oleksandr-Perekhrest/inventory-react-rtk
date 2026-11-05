@@ -4,7 +4,7 @@ import { Warehouse } from "lucide-react";
 
 export function WarehouseLogo({ small }: { small?: boolean }) {
     return (
-        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:pr-2">
             <div
                 className={cn(
                     "flex shrink-0 items-center justify-center rounded-sm bg-sidebar-primary",

@@ -56,11 +56,11 @@ function NavLink({
 export function AppSidebar() {
     return (
         <Sidebar collapsible="icon">
-            <SidebarHeader className="pr-5">
+            <SidebarHeader className="pr-7">
                 <WarehouseLogo />
             </SidebarHeader>
             <SidebarSeparator className="data-horizontal:w-auto" />
-            <SidebarContent className="pr-5">
+            <SidebarContent className="pr-7">
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>

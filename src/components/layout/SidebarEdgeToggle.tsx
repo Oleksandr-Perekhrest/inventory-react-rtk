@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/tooltip";
 
 const chevronClass =
-    "size-5 text-sidebar-primary transition-[width,height] duration-150 motion-reduce:transition-none group-hover/toggle:size-6 group-focus-visible/toggle:size-6";
+    "size-6 text-sidebar-primary transition-[width,height,color] duration-150 motion-reduce:transition-none group-hover/toggle:size-7 group-hover/toggle:text-sidebar-primary-foreground group-focus-visible/toggle:size-7 group-focus-visible/toggle:text-sidebar-primary-foreground";
 
 export function SidebarEdgeToggle() {
     const { state, toggleSidebar } = useSidebar();
@@ -25,7 +25,7 @@ export function SidebarEdgeToggle() {
                     onClick={toggleSidebar}
                     aria-label={label}
                     aria-expanded={!isCollapsed}
-                    className="group/toggle absolute inset-y-0 right-0 z-20 hidden w-5 cursor-pointer items-center justify-center transition-colors duration-150 hover:bg-sidebar-accent focus-visible:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring motion-reduce:transition-none lg:flex"
+                    className="group/toggle absolute inset-y-0 right-0 z-20 hidden w-7 cursor-pointer items-center justify-center transition-colors duration-150 hover:bg-sidebar-primary focus-visible:bg-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring motion-reduce:transition-none lg:flex"
                 >
                     {isCollapsed ? (
                         <ChevronRight className={chevronClass} />
