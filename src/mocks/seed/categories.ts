@@ -124,4 +124,7 @@ export const categories: Category[] = [
         parentId: "cat-cheese",
         position: 1,
     },
+
+    // depth 1 — food children (continued)
+    { id: "cat-frozen", name: "Frozen", parentId: "cat-food", position: 7 },
 ];
