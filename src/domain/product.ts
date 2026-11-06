@@ -8,7 +8,7 @@ export const ProductSchema = z
     .object({
         id: z.string().min(1),
         sku: z.string().regex(/^[A-Z0-9-]+$/),
-        name: z.string().min(1),
+        name: z.string().trim().min(1),
         categoryId: z.string().min(1),
         unit: UnitSchema,
         price: z.int().gte(0),
