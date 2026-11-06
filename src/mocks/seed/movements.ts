@@ -55,6 +55,8 @@ const SHELF_LIFE: Record<string, number> = {
 };
 
 const DAY_MS = 86_400_000;
+const WORK_START_MS = 8 * 3_600_000; // 08:00 UTC
+const WORK_END_MS = 17 * 3_600_000; // 17:00 UTC exclusive (last valid minute 16:59)
 
 function resolveByAncestor(
     categoryId: string,
@@ -107,6 +109,26 @@ function workHourMs(
     return base + hour * 3_600_000 + min * 60_000;
 }
 
+// Latest working-hours timestamp strictly before limitMs (08:00–16:59 UTC)
+function latestWorkingTs(limitMs: number, rand: () => number): number {
+    let dayStart = startOfDayUtc(limitMs);
+    const todayOffset = limitMs - dayStart;
+    if (todayOffset > WORK_START_MS + 60_000) {
+        const ceiling = Math.min(todayOffset - 60_000, WORK_END_MS - 60_000);
+        const rangeMs = ceiling - WORK_START_MS;
+        return (
+            dayStart + WORK_START_MS + Math.floor(rand() * Math.max(1, rangeMs))
+        );
+    }
+    // limitMs is before or just at start of working hours today — use previous day
+    dayStart -= DAY_MS;
+    return (
+        dayStart +
+        WORK_START_MS +
+        Math.floor(rand() * (WORK_END_MS - 60_000 - WORK_START_MS))
+    );
+}
+
 function yyyymmdd(ms: number): string {
     const d = new Date(ms);
     const y = d.getUTCFullYear();
@@ -152,9 +174,6 @@ export function generateMovements({
     // Leave 10 days at the end for balancing receipts
     const loopEndMs = endMs - 10 * DAY_MS;
 
-    let soCounter = 1;
-    let woCounter = 1;
-    let adjCounter = 1;
     const batchCountByDay = new Map<string, number>();
 
     function nextBatch(dayMs: number): string {
@@ -164,6 +183,7 @@ export function generateMovements({
         return `B${yymmdd(dayMs)}-${String(n).padStart(3, "0")}`;
     }
 
+    // References for shipment/write-off/adjustment are deferred until after sort
     const allMovements: Array<Omit<Movement, "id">> = [];
 
     for (const product of products) {
@@ -186,12 +206,31 @@ export function generateMovements({
 
         const mn = minUnit(product.unit);
         let stock = 0;
+        let prevProductTs = 0;
+
+        // Ensure ts is strictly after the previous movement for this product.
+        // If not, advance by 5 min; if that spills past 17:00, move to 08:00 next day.
+        function clampTs(ts: number): number {
+            if (ts <= prevProductTs) {
+                let adjusted = prevProductTs + 5 * 60_000;
+                const dayStart = startOfDayUtc(adjusted);
+                if (adjusted >= dayStart + WORK_END_MS) {
+                    adjusted = dayStart + DAY_MS + WORK_START_MS;
+                }
+                ts = adjusted;
+            }
+            prevProductTs = ts;
+            return ts;
+        }
 
         function makeReceiptAt(dayMs: number, qty: number, hourOff = 0): void {
             qty = Math.max(mn, roundQty(product.unit, qty));
-            const ts = workHourMs(dayMs, hourOff, rand);
+            const rawTs = workHourMs(dayMs, hourOff, rand);
+            const ts = clampTs(rawTs);
+            // Derive actual day from clamped ts so reference and batch stay consistent
+            const actualDayMs = startOfDayUtc(ts);
             const supNum = supplierId.slice(4); // "001".."008"
-            const ref = `INV-SUP${supNum}-${yyyymmdd(dayMs)}`;
+            const ref = `INV-SUP${supNum}-${yyyymmdd(actualDayMs)}`;
             const mov: Omit<Movement, "id"> = {
                 type: "receipt",
                 productId: product.id,
@@ -201,14 +240,15 @@ export function generateMovements({
                 supplierId,
             };
             if (product.perishable) {
-                mov.batch = nextBatch(dayMs);
-                mov.expiresAt = isoDate(dayMs + shelfLife * DAY_MS);
+                mov.batch = nextBatch(actualDayMs);
+                mov.expiresAt = isoDate(actualDayMs + shelfLife * DAY_MS);
             }
             allMovements.push(mov);
             stock += qty;
         }
 
         function makeShipmentAt(ts: number, qty: number): void {
+            ts = clampTs(ts);
             qty = Math.abs(roundQty(product.unit, qty));
             if (qty > stock) qty = stock;
             if (qty < mn) return;
@@ -217,12 +257,13 @@ export function generateMovements({
                 productId: product.id,
                 quantity: -qty,
                 date: new Date(ts).toISOString(),
-                reference: `SO-${String(soCounter++).padStart(5, "0")}`,
+                reference: "", // assigned in final pass
             });
             stock -= qty;
         }
 
         function makeWriteOffAt(ts: number, qty: number): void {
+            ts = clampTs(ts);
             qty = Math.abs(roundQty(product.unit, qty));
             if (qty >= stock) qty = roundQty(product.unit, stock * 0.5);
             if (qty < mn) return;
@@ -232,7 +273,7 @@ export function generateMovements({
                 productId: product.id,
                 quantity: -qty,
                 date: new Date(ts).toISOString(),
-                reference: `WO-${String(woCounter++).padStart(5, "0")}`,
+                reference: "", // assigned in final pass
                 comment,
             });
             stock -= qty;
@@ -240,12 +281,13 @@ export function generateMovements({
 
         function makeAdjustmentAt(ts: number, qty: number): void {
             if (qty === 0) return;
+            ts = clampTs(ts);
             allMovements.push({
                 type: "adjustment",
                 productId: product.id,
                 quantity: qty,
                 date: new Date(ts).toISOString(),
-                reference: `ADJ-${String(adjCounter++).padStart(5, "0")}`,
+                reference: "", // assigned in final pass
                 comment: "Stock count correction",
             });
             stock += qty;
@@ -338,18 +380,31 @@ export function generateMovements({
                 const safeDay = Math.min(balDayMs, endMs - DAY_MS);
                 makeReceiptAt(safeDay, diff, 3);
             } else {
-                // Need a shipment
-                const balTs = endMs - int(1, 3) * 3_600_000;
-                makeShipmentAt(balTs, absDiff);
+                // Need a shipment — place it at the latest valid working-hours slot
+                makeShipmentAt(latestWorkingTs(endMs, rand), absDiff);
             }
         }
     }
 
-    // Sort by date and assign IDs
+    // Sort by date, then assign IDs and document numbers in chronological order
     allMovements.sort((a, b) => a.date.localeCompare(b.date));
 
-    return allMovements.map((m, i) => ({
-        ...m,
-        id: `mov-${String(i + 1).padStart(5, "0")}`,
-    }));
+    let soNum = 1;
+    let woNum = 1;
+    let adjNum = 1;
+
+    return allMovements.map((m, i) => {
+        let ref = m.reference;
+        if (m.type === "shipment")
+            ref = `SO-${String(soNum++).padStart(5, "0")}`;
+        else if (m.type === "write-off")
+            ref = `WO-${String(woNum++).padStart(5, "0")}`;
+        else if (m.type === "adjustment")
+            ref = `ADJ-${String(adjNum++).padStart(5, "0")}`;
+        return {
+            ...m,
+            id: `mov-${String(i + 1).padStart(5, "0")}`,
+            reference: ref,
+        };
+    });
 }
