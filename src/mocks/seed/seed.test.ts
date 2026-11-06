@@ -100,6 +100,14 @@ function checkInvariants(now: Date): void {
     ).toBe(products.length);
     expect(categoryIds.size, "category ids not unique").toBe(categories.length);
 
+    // --- Movements array is globally sorted by date ---
+    for (let i = 1; i < movements.length; i++) {
+        expect(
+            movements[i].date >= movements[i - 1].date,
+            `movements not sorted at index ${i}`,
+        ).toBe(true);
+    }
+
     // --- Category tree: no cycles ---
     const catById = new Map(categories.map((c) => [c.id, c]));
     for (const cat of categories) {
@@ -141,11 +149,10 @@ function checkInvariants(now: Date): void {
             expect(
                 running,
                 `${product.id} running sum below 0`,
-            ).toBeGreaterThanOrEqual(-1e-9);
+            ).toBeGreaterThanOrEqual(0);
         }
-        expect(running, `${product.id} final sum mismatch`).toBeCloseTo(
+        expect(running, `${product.id} final sum mismatch`).toBe(
             product.quantity,
-            10,
         );
     }
 
