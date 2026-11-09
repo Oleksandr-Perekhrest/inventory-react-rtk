@@ -75,16 +75,12 @@ function TreeNodeInner({ id, level }: Props) {
             aria-level={level}
             aria-setsize={setSize}
             aria-posinset={posInSet}
-            aria-expanded={displayHasChildren ? effectiveExpanded : undefined}
             tabIndex={isFocused ? 0 : -1}
-            className="flex flex-col outline-none"
+            aria-expanded={displayHasChildren ? effectiveExpanded : undefined}
+            className="flex flex-col outline-none [&:focus-visible>div:first-child]:ring-2 [&:focus-visible>div:first-child]:ring-ring"
         >
             <div
-                className={cn(
-                    "flex h-8 cursor-pointer items-center gap-1 rounded-sm pr-1 text-sm text-foreground",
-                    isFocused &&
-                        "ring-2 ring-ring ring-offset-1 ring-offset-background",
-                )}
+                className="flex h-8 cursor-pointer items-center gap-1 rounded-sm pr-1 text-sm text-foreground"
                 style={{ paddingLeft: `${(level - 1) * 18 + 4}px` }}
                 onClick={() => {
                     dispatch(setFocused(id));

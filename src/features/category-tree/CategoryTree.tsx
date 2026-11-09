@@ -1,4 +1,5 @@
 // outsource dependencies
+import { X } from "lucide-react";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 
 // local dependencies
@@ -27,6 +28,7 @@ export function CategoryTree() {
     const focusedId = useAppSelector(selectFocusedId);
     const expanded = useAppSelector((state) => state.categoryTree.expanded);
     const treeRef = useRef<HTMLUListElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const searchContext = useMemo(() => {
         if (!trimmedQuery || !data) return INACTIVE_SEARCH;
@@ -104,22 +106,39 @@ export function CategoryTree() {
             >
                 Categories
             </span>
-            <Input
-                type="search"
-                aria-label="Search categories"
-                placeholder="Search categories"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                    if (e.key === "Escape") setQuery("");
-                    if (e.key === "ArrowDown") {
-                        e.preventDefault();
-                        treeRef.current
-                            ?.querySelector<HTMLElement>('[tabindex="0"]')
-                            ?.focus();
-                    }
-                }}
-            />
+            <div className="relative">
+                <Input
+                    ref={inputRef}
+                    type="search"
+                    aria-label="Search categories"
+                    placeholder="Search categories"
+                    value={query}
+                    className="pr-8 [&::-webkit-search-cancel-button]:appearance-none"
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Escape") setQuery("");
+                        if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            treeRef.current
+                                ?.querySelector<HTMLElement>('[tabindex="0"]')
+                                ?.focus();
+                        }
+                    }}
+                />
+                {query && (
+                    <button
+                        type="button"
+                        aria-label="Clear search"
+                        onClick={() => {
+                            setQuery("");
+                            inputRef.current?.focus();
+                        }}
+                        className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                        <X aria-hidden="true" className="size-3.5" />
+                    </button>
+                )}
+            </div>
             <div role="status" aria-live="polite" className="sr-only">
                 {isSearchActive
                     ? `${searchContext.matches.size} ${searchContext.matches.size === 1 ? "category" : "categories"} found`
