@@ -25,3 +25,10 @@ export type ApiErrorBody = {
         fields?: Record<string, string>;
     };
 };
+
+export type ApiErrorData = {
+    status: number | "NETWORK_ERROR" | "PARSING_ERROR";
+    code: string;
+    message: string;
+    fields?: Record<string, string>;
+};

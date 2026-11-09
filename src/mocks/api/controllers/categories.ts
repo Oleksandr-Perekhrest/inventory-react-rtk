@@ -1,12 +1,7 @@
-// outsource dependencies
-import * as z from "zod";
-
 // local dependencies
 import type { Db } from "../../db";
 import type { CategoryWithCounts } from "../../../api/types";
 import { buildChildrenMap, collectDescendantIds } from "../tree";
-
-export const categoriesQuerySchema = z.object({});
 
 export function listCategories({ db }: { db: Db }): {
     body: CategoryWithCounts[];

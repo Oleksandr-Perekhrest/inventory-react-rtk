@@ -26,6 +26,36 @@ export default defineConfig({
               ]
             : []),
     ],
+    build: {
+        rolldownOptions: {
+            output: {
+                codeSplitting: {
+                    groups: [
+                        {
+                            name: "vendor-react",
+                            test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+                            priority: 10,
+                        },
+                        {
+                            name: "vendor-router",
+                            test: /[\\/]node_modules[\\/]@tanstack[\\/]/,
+                            priority: 9,
+                        },
+                        {
+                            name: "vendor-redux",
+                            test: /[\\/]node_modules[\\/](@reduxjs[\\/]toolkit|react-redux|redux|immer|reselect)[\\/]/,
+                            priority: 8,
+                        },
+                        {
+                            name: "vendor-ui",
+                            test: /[\\/]node_modules[\\/](radix-ui|@radix-ui|lucide-react|class-variance-authority)[\\/]/,
+                            priority: 7,
+                        },
+                    ],
+                },
+            },
+        },
+    },
     resolve: {
         alias: {
             "@": `${import.meta.dirname}/src`,

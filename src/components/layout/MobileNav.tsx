@@ -8,6 +8,7 @@ import type { LinkProps } from "@tanstack/react-router";
 
 // local dependencies
 import { navItems } from "@/components/layout/navItems";
+import { DemoControls } from "@/components/layout/DemoControls";
 import { useActiveNav } from "@/components/layout/useActiveNav";
 import { WarehouseMark } from "@/components/layout/WarehouseLogo";
 import { useActiveNavItem } from "@/components/layout/useActiveNavItem";
@@ -132,6 +133,10 @@ export function MobileNav() {
                             onNavigate={() => setOpen(false)}
                         />
                     ))}
+                    <div className="border-t border-sidebar-border" />
+                    <div className="px-2 py-3">
+                        <DemoControls />
+                    </div>
                     <div
                         className="shrink-0"
                         style={{ height: "env(safe-area-inset-bottom)" }}

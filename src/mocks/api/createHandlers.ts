@@ -7,18 +7,17 @@ import type { Db } from "../db";
 import { createRouteHandler } from "./route";
 import { demoReset } from "./controllers/demo";
 import type { NetworkConfig } from "./network";
-import { listSuppliers, suppliersQuerySchema } from "./controllers/suppliers";
-import { listMovements, movementsQuerySchema } from "./controllers/movements";
+import { listMovements } from "./controllers/movements";
+import { listSuppliers } from "./controllers/suppliers";
+import { listCategories } from "./controllers/categories";
+import { getProduct, listProducts } from "./controllers/products";
 import {
-    listCategories,
+    movementsQuerySchema,
+    suppliersQuerySchema,
     categoriesQuerySchema,
-} from "./controllers/categories";
-import {
-    getProduct,
-    listProducts,
     getProductQuerySchema,
     listProductsQuerySchema,
-} from "./controllers/products";
+} from "../../api/queries";
 
 export function createHandlers({
     db,

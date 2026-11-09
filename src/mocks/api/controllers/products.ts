@@ -1,35 +1,18 @@
-// outsource dependencies
-import * as z from "zod";
-
 // local dependencies
 import type { Db } from "../../db";
 import { notFound } from "../errors";
+import { paginate } from "../pagination";
 import type { Product } from "../../../domain";
 import type { Paginated } from "../../../api/types";
-import { paginate, paginationQuery } from "../pagination";
+import type { ListProductsQuery } from "../../../api/queries";
 import { buildChildrenMap, collectDescendantIds } from "../tree";
-
-export const listProductsQuerySchema = z.object({
-    ...paginationQuery,
-    q: z.string().trim().optional(),
-    sort: z.enum(["name", "sku", "quantity", "price"]).default("name"),
-    order: z.enum(["asc", "desc"]).default("asc"),
-    stock: z.enum(["low", "out"]).optional(),
-    categoryId: z.string().optional(),
-    includeDescendants: z
-        .enum(["true", "false"])
-        .default("true")
-        .transform((v) => v === "true"),
-});
-
-export const getProductQuerySchema = z.object({});
 
 export function listProducts({
     db,
     query,
 }: {
     db: Db;
-    query: z.infer<typeof listProductsQuerySchema>;
+    query: ListProductsQuery;
 }): { body: Paginated<Product> } {
     const {
         page,
