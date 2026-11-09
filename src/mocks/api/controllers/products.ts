@@ -4,37 +4,10 @@ import * as z from "zod";
 // local dependencies
 import type { Db } from "../../db";
 import { notFound } from "../errors";
-import type { Category } from "../../../domain";
+import type { Product } from "../../../domain";
+import type { Paginated } from "../../../api/types";
 import { paginate, paginationQuery } from "../pagination";
-
-function buildChildrenMap(
-    categories: ReadonlyArray<Readonly<Category>>,
-): Map<string, string[]> {
-    const map = new Map<string, string[]>();
-    for (const cat of categories) {
-        if (cat.parentId !== null) {
-            if (!map.has(cat.parentId)) map.set(cat.parentId, []);
-            map.get(cat.parentId)!.push(cat.id);
-        }
-    }
-    return map;
-}
-
-function collectDescendantIds(
-    id: string,
-    childrenMap: Map<string, string[]>,
-): Set<string> {
-    const result = new Set<string>([id]);
-    const queue = [id];
-    while (queue.length > 0) {
-        const current = queue.shift()!;
-        for (const childId of childrenMap.get(current) ?? []) {
-            result.add(childId);
-            queue.push(childId);
-        }
-    }
-    return result;
-}
+import { buildChildrenMap, collectDescendantIds } from "../tree";
 
 export const listProductsQuerySchema = z.object({
     ...paginationQuery,
@@ -57,7 +30,7 @@ export function listProducts({
 }: {
     db: Db;
     query: z.infer<typeof listProductsQuerySchema>;
-}) {
+}): { body: Paginated<Product> } {
     const {
         page,
         pageSize,
@@ -134,7 +107,7 @@ export function getProduct({
 }: {
     db: Db;
     params: Record<string, string>;
-}) {
+}): { body: Product } {
     const product = db.products.find((p) => p.id === params["id"]);
     if (!product) throw notFound(`Product '${params["id"]}' not found`);
     return { body: product };

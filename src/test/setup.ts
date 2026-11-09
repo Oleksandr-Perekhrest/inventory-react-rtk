@@ -6,21 +6,24 @@ import { cleanup } from "@testing-library/react";
 afterEach(cleanup);
 
 // jsdom does not implement scrollTo; TanStack Router calls it for scroll restoration
-window.scrollTo = () => {};
+// Guard required because route.test.ts runs in node environment (no window)
+if (typeof window !== "undefined") {
+    window.scrollTo = () => {};
 
-Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: (query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => false,
-    }),
-});
+    Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        value: (query: string) => ({
+            matches: false,
+            media: query,
+            onchange: null,
+            addListener: () => {},
+            removeListener: () => {},
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => false,
+        }),
+    });
+}
 
 // jsdom does not implement ResizeObserver; Radix Tooltip (Popper) measures its content with it
 class ResizeObserverStub {

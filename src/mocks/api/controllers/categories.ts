@@ -3,40 +3,14 @@ import * as z from "zod";
 
 // local dependencies
 import type { Db } from "../../db";
-import type { Category } from "../../../domain";
-
-function buildChildrenMap(
-    categories: ReadonlyArray<Readonly<Category>>,
-): Map<string, string[]> {
-    const map = new Map<string, string[]>();
-    for (const cat of categories) {
-        if (cat.parentId !== null) {
-            if (!map.has(cat.parentId)) map.set(cat.parentId, []);
-            map.get(cat.parentId)!.push(cat.id);
-        }
-    }
-    return map;
-}
-
-function collectDescendantIds(
-    id: string,
-    childrenMap: Map<string, string[]>,
-): Set<string> {
-    const result = new Set<string>([id]);
-    const queue = [id];
-    while (queue.length > 0) {
-        const current = queue.shift()!;
-        for (const childId of childrenMap.get(current) ?? []) {
-            result.add(childId);
-            queue.push(childId);
-        }
-    }
-    return result;
-}
+import type { CategoryWithCounts } from "../../../api/types";
+import { buildChildrenMap, collectDescendantIds } from "../tree";
 
 export const categoriesQuerySchema = z.object({});
 
-export function listCategories({ db }: { db: Db }) {
+export function listCategories({ db }: { db: Db }): {
+    body: CategoryWithCounts[];
+} {
     const { categories, products } = db;
     const childrenMap = buildChildrenMap(categories);
 
@@ -54,7 +28,7 @@ export function listCategories({ db }: { db: Db }) {
         return a.position - b.position;
     });
 
-    const rows = sorted.map((cat) => {
+    const rows: CategoryWithCounts[] = sorted.map((cat) => {
         const descendants = collectDescendantIds(cat.id, childrenMap);
         let totalProductCount = 0;
         for (const p of products) {

@@ -6,6 +6,7 @@ import type { Db } from "../../db";
 import { notFound, badRequest } from "../errors";
 import { MovementTypeSchema } from "../../../domain";
 import { paginate, paginationQuery } from "../pagination";
+import type { Paginated, MovementListItem } from "../../../api/types";
 
 export const movementsQuerySchema = z.object({
     ...paginationQuery,
@@ -21,7 +22,7 @@ export function listMovements({
 }: {
     db: Db;
     query: z.infer<typeof movementsQuerySchema>;
-}) {
+}): { body: Paginated<MovementListItem> } {
     const { page, pageSize, type, productId, from, to } = query;
 
     if (productId !== undefined) {
@@ -61,7 +62,7 @@ export function listMovements({
     const productMap = new Map(db.products.map((p) => [p.id, p]));
     const supplierMap = new Map(db.suppliers.map((s) => [s.id, s]));
 
-    const items = paged.items.map((m) => {
+    const items: MovementListItem[] = paged.items.map((m) => {
         const p = productMap.get(m.productId)!;
         const s = m.supplierId ? (supplierMap.get(m.supplierId) ?? null) : null;
         return {
