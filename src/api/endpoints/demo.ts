@@ -10,4 +10,5 @@ const extendedApi = baseApi.injectEndpoints({
     }),
 });
 
+export const demoApi = extendedApi;
 export const { useResetDemoMutation } = extendedApi;

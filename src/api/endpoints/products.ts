@@ -26,4 +26,5 @@ const extendedApi = baseApi.injectEndpoints({
     }),
 });
 
+export const productsApi = extendedApi;
 export const { useGetProductsQuery, useGetProductQuery } = extendedApi;

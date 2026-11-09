@@ -1,14 +1,21 @@
 // outsource dependencies
-import { http, passthrough, HttpResponse } from "msw";
-import { it, expect, afterAll, describe, afterEach, beforeAll } from "vitest";
+import { http, HttpResponse } from "msw";
+import {
+    it,
+    vi,
+    expect,
+    afterAll,
+    describe,
+    afterEach,
+    beforeAll,
+} from "vitest";
 
 // local dependencies
-import "@/api/endpoints/demo";
-import "@/api/endpoints/products";
-import { baseApi } from "@/api/baseApi";
 import { makeStore } from "@/store/store";
+import { demoApi } from "@/api/endpoints/demo";
 import { setBackendReady } from "@/api/backendReady";
 import { createMockServer } from "@/test/mockServer";
+import { productsApi } from "@/api/endpoints/products";
 
 const { db, server } = createMockServer();
 
@@ -20,9 +27,6 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ep = baseApi.endpoints as Record<string, any>;
-
 describe("getProducts with categoryId", () => {
     it("returns exactly the products with that categoryId (includeDescendants: false)", async () => {
         const categoryId = db.products[0].categoryId;
@@ -30,7 +34,7 @@ describe("getProducts with categoryId", () => {
 
         const store = makeStore();
         const result = await store.dispatch(
-            ep.getProducts.initiate({
+            productsApi.endpoints.getProducts.initiate({
                 categoryId,
                 includeDescendants: false,
             }),
@@ -38,14 +42,15 @@ describe("getProducts with categoryId", () => {
 
         expect(result.error).toBeUndefined();
         expect(result.data?.total).toBe(expected.length);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const ids = result.data?.items.map((p: any) => p.id).sort();
+        const ids = result.data?.items.map((p) => p.id).sort();
         expect(ids).toEqual(expected.map((p) => p.id).sort());
     });
 
     it("control: request without categoryId succeeds (no 400 for undefined params)", async () => {
         const store = makeStore();
-        const result = await store.dispatch(ep.getProducts.initiate({}));
+        const result = await store.dispatch(
+            productsApi.endpoints.getProducts.initiate({}),
+        );
         expect(result.error).toBeUndefined();
         expect(result.data?.items).toBeDefined();
     });
@@ -55,7 +60,7 @@ describe("error normalization", () => {
     it("404 from backend becomes { status: 404, code: 'NOT_FOUND', message }", async () => {
         const store = makeStore();
         const result = await store.dispatch(
-            ep.getProducts.initiate({
+            productsApi.endpoints.getProducts.initiate({
                 categoryId: "non-existent-id",
                 includeDescendants: false,
             }),
@@ -70,7 +75,9 @@ describe("error normalization", () => {
     it("network failure becomes NETWORK_ERROR with the fixed readable message", async () => {
         server.use(http.get("/api/products", () => HttpResponse.error()));
         const store = makeStore();
-        const result = await store.dispatch(ep.getProducts.initiate({}));
+        const result = await store.dispatch(
+            productsApi.endpoints.getProducts.initiate({}),
+        );
         expect(result.error).toMatchObject({
             status: "NETWORK_ERROR",
             code: "NETWORK_ERROR",
@@ -90,7 +97,9 @@ describe("error normalization", () => {
             ),
         );
         const store = makeStore();
-        const result = await store.dispatch(ep.getProducts.initiate({}));
+        const result = await store.dispatch(
+            productsApi.endpoints.getProducts.initiate({}),
+        );
         expect(result.error).toMatchObject({
             status: "PARSING_ERROR",
             code: "PARSING_ERROR",
@@ -104,7 +113,7 @@ describe("backend readiness", () => {
         server.use(
             http.get("/api/products", () => {
                 requestCount++;
-                return passthrough();
+                // return nothing — falls through to the next matching handler
             }),
         );
 
@@ -115,14 +124,18 @@ describe("backend readiness", () => {
         setBackendReady(backendPromise);
 
         const store = makeStore();
-        const dispatchPromise = store.dispatch(ep.getProducts.initiate({}));
+        const dispatchPromise = store.dispatch(
+            productsApi.endpoints.getProducts.initiate({}),
+        );
 
         await new Promise<void>((resolve) => setTimeout(resolve, 50));
         expect(requestCount).toBe(0);
 
         resolveBackend();
-        await dispatchPromise;
+        const result = await dispatchPromise;
         expect(requestCount).toBe(1);
+        expect(result.data).toBeDefined();
+        expect(result.error).toBeUndefined();
     });
 
     it("with rejected backend promise, result is BACKEND_UNAVAILABLE and no request is sent", async () => {
@@ -130,7 +143,7 @@ describe("backend readiness", () => {
         server.use(
             http.get("/api/products", () => {
                 requestCount++;
-                return passthrough();
+                // return nothing — falls through to the next matching handler
             }),
         );
 
@@ -141,7 +154,9 @@ describe("backend readiness", () => {
         setBackendReady(rejected);
 
         const store = makeStore();
-        const result = await store.dispatch(ep.getProducts.initiate({}));
+        const result = await store.dispatch(
+            productsApi.endpoints.getProducts.initiate({}),
+        );
 
         expect(result.error).toMatchObject({
             status: "NETWORK_ERROR",
@@ -157,19 +172,26 @@ describe("tag invalidation", () => {
         server.use(
             http.get("/api/products", () => {
                 callCount++;
-                return passthrough();
+                // return nothing — falls through to the next matching handler
             }),
         );
 
         const store = makeStore();
-        const subscription = store.dispatch(ep.getProducts.initiate({}));
+        const subscription = store.dispatch(
+            productsApi.endpoints.getProducts.initiate({}),
+        );
         await subscription;
         expect(callCount).toBe(1);
 
-        await store.dispatch(ep.resetDemo.initiate());
+        await store.dispatch(demoApi.endpoints.resetDemo.initiate());
 
-        await new Promise<void>((resolve) => setTimeout(resolve, 100));
-        expect(callCount).toBe(2);
+        await vi.waitFor(() => expect(callCount).toBe(2));
+
+        const queryState = productsApi.endpoints.getProducts.select({})(
+            store.getState(),
+        );
+        expect(queryState.data).toBeDefined();
+        expect(queryState.error).toBeUndefined();
 
         subscription.unsubscribe();
     });
@@ -179,12 +201,14 @@ describe("tag invalidation", () => {
         server.use(
             http.get("/api/products", () => {
                 callCount++;
-                return passthrough();
+                // return nothing — falls through to the next matching handler
             }),
         );
 
         const store = makeStore();
-        const subscription = store.dispatch(ep.getProducts.initiate({}));
+        const subscription = store.dispatch(
+            productsApi.endpoints.getProducts.initiate({}),
+        );
         await subscription;
         expect(callCount).toBe(1);
 

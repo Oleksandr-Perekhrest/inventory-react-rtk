@@ -1,7 +1,7 @@
 // outsource dependencies
+import { http, delay, HttpResponse } from "msw";
 import userEvent from "@testing-library/user-event";
 import { screen, waitFor } from "@testing-library/react";
-import { http, delay, passthrough, HttpResponse } from "msw";
 import {
     it,
     expect,
@@ -107,7 +107,7 @@ describe("Reset dialog", () => {
         server.use(
             http.post("/api/demo/reset", () => {
                 resetCallCount++;
-                return passthrough();
+                // return nothing — falls through to the next matching handler
             }),
         );
 
