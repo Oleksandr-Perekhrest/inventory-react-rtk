@@ -19,6 +19,6 @@ export function makeStore() {
     return store;
 }
 
-type Store = ReturnType<typeof makeStore>;
-export type RootState = ReturnType<Store["getState"]>;
-export type AppDispatch = Store["dispatch"];
+export type AppStore = ReturnType<typeof makeStore>;
+export type RootState = ReturnType<AppStore["getState"]>;
+export type AppDispatch = AppStore["dispatch"];

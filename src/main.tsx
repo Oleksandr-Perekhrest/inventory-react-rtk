@@ -10,15 +10,20 @@ import { makeStore } from "./store/store";
 import { routeTree } from "./routeTree.gen";
 import { setBackendReady } from "./api/backendReady";
 
-const router = createRouter({ routeTree });
+const store = makeStore();
+
+const router = createRouter({
+    routeTree,
+    context: { store },
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 0,
+});
 
 declare module "@tanstack/react-router" {
     interface Register {
         router: typeof router;
     }
 }
-
-const store = makeStore();
 
 const mocksStart = import("./mocks/start").then((m) => m.mocksReady);
 setBackendReady(mocksStart);

@@ -10,15 +10,21 @@ import {
 // local dependencies
 import { makeStore } from "@/store/store";
 import { routeTree } from "@/routeTree.gen";
+import type { AppStore } from "@/store/store";
 
-export async function renderWithRouter(path: string) {
+export async function renderWithRouter(
+    path: string,
+    options?: { store?: AppStore },
+) {
+    const store = options?.store ?? makeStore();
     const router = createRouter({
         routeTree,
+        context: { store },
         history: createMemoryHistory({ initialEntries: [path] }),
     });
     await router.load();
     const result = render(
-        <Provider store={makeStore()}>
+        <Provider store={store}>
             <RouterProvider router={router} />
         </Provider>,
     );
