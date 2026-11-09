@@ -1,8 +1,7 @@
 // outsource dependencies
-import { ZodObject } from "zod";
+import * as z from "zod";
 import { delay, HttpResponse } from "msw";
 import type { HttpResponseResolver } from "msw";
-import type { ZodType, infer as ZodInfer } from "zod";
 
 // local dependencies
 import type { Db } from "../db";
@@ -23,15 +22,15 @@ type Controller<Q, B> = (
 ) => ControllerResult | Promise<ControllerResult>;
 
 type RouteOptions<
-    Q extends ZodType | undefined,
-    B extends ZodType | undefined,
+    Q extends z.ZodType | undefined,
+    B extends z.ZodType | undefined,
 > = {
     querySchema?: Q;
     bodySchema?: B;
 };
 
-type InferOrUndefined<T extends ZodType | undefined> = T extends ZodType
-    ? ZodInfer<T>
+type InferOrUndefined<T extends z.ZodType | undefined> = T extends z.ZodType
+    ? z.infer<T>
     : undefined;
 
 export type RouteHandlerConfig = { db: Db; network: NetworkConfig };
@@ -50,8 +49,8 @@ function errorJson(
 
 export function createRouteHandler({ db, network }: RouteHandlerConfig) {
     return function route<
-        Q extends ZodType | undefined = undefined,
-        B extends ZodType | undefined = undefined,
+        Q extends z.ZodType | undefined = undefined,
+        B extends z.ZodType | undefined = undefined,
     >(
         controller: Controller<InferOrUndefined<Q>, InferOrUndefined<B>>,
         options?: RouteOptions<Q, B>,
@@ -91,7 +90,7 @@ export function createRouteHandler({ db, network }: RouteHandlerConfig) {
                     queryObject[key] = value;
                 }
 
-                if (schema instanceof ZodObject) {
+                if (schema instanceof z.ZodObject) {
                     const knownKeys = new Set(Object.keys(schema.shape));
                     const unknownFields: Record<string, string> = {};
                     for (const key of Object.keys(queryObject)) {

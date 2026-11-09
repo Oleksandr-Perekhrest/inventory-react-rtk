@@ -1,5 +1,5 @@
 // outsource dependencies
-import { z } from "zod";
+import * as z from "zod";
 
 export const UnitSchema = z.enum(["pcs", "kg", "l", "box"]);
 export type Unit = z.infer<typeof UnitSchema>;

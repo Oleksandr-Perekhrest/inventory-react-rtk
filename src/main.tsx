@@ -15,19 +15,14 @@ declare module "@tanstack/react-router" {
     }
 }
 
-function render() {
-    createRoot(document.getElementById("root")!).render(
-        <StrictMode>
-            <RouterProvider router={router} />
-        </StrictMode>,
-    );
-}
+createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+        <RouterProvider router={router} />
+    </StrictMode>,
+);
 
-import("./mocks/browser")
-    .then(({ worker }) =>
-        worker.start({ onUnhandledFrame: "bypass" }).then(render),
-    )
-    .catch((err) => {
-        console.error("[warehouse-manager] Failed to start MSW worker:", err);
-        render();
-    });
+import("./mocks/start")
+    .then(({ mocksReady }) => mocksReady)
+    .catch((err) =>
+        console.error("[warehouse-manager] MSW worker failed to start:", err),
+    );

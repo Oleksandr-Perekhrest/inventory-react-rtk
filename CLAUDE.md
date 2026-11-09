@@ -88,8 +88,18 @@ Requests flow: **MSW handler → `route()` (network simulation, validation, erro
 - `src/mocks/api/createHandlers.ts` — `createHandlers({ db, network })` assembles all MSW handlers; contains no business logic.
 - `src/mocks/api/controllers/` — one file per resource; each controller is a pure function `({ db, params, query, body }) => { status?, body? }`. Throw `ApiError` to signal client errors; any other throw becomes 500.
 - `src/mocks/api/errors.ts` — `ApiError` class + helpers (`badRequest`, `notFound`, `conflict`, `unprocessable`). Error response shape: `{ error: { code, message, fields? } }`.
-- `src/mocks/browser.ts` — creates the app-singleton `db` and MSW `worker`; imported dynamically by `main.tsx`.
+- `src/mocks/browser.ts` — creates the app-singleton `db` and MSW `worker`; not imported directly by `main.tsx`.
+- `src/mocks/start.ts` — exports `mocksReady: Promise<void>` (dynamically imports `browser.ts` and starts the worker). The RTK Query `baseQuery` will `await mocksReady` before every request.
+- `main.tsx` renders immediately without waiting for the worker; it kicks off `import("./mocks/start")` as a fire-and-forget and logs any start error.
 - Network simulation config (`src/mocks/api/network.ts`): delay range, error rate/mode. Toggle error mode via `setErrorMode("random" | "off")`; persisted in `localStorage` under key `warehouse-manager:network`.
+
+### Bundle analysis
+
+```bash
+ANALYZE=1 pnpm build   # writes stats.html (gitignored)
+```
+
+Open `stats.html` in a browser to see the interactive treemap. Main browser-chunk cost: `tldts` (TLD trie from MSW's `tough-cookie`) ≈ 111 KB gz, Zod ≈ 34 KB gz, `@mswjs/interceptors` ≈ 24 KB gz.
 
 ## Working rules
 
