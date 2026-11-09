@@ -70,6 +70,42 @@ export function collectAncestors(
     return ancestors;
 }
 
+export type VisibleNode = {
+    id: Category["id"];
+    parentId: ParentKey;
+    level: number;
+    hasChildren: boolean;
+    expanded: boolean;
+};
+
+export function getVisibleOrder(
+    index: ChildrenIndex,
+    isExpanded: (id: Category["id"]) => boolean,
+    visible?: Set<Category["id"]>,
+): VisibleNode[] {
+    const result: VisibleNode[] = [];
+
+    function walk(parentId: ParentKey, level: number) {
+        const children = index.get(parentId) ?? [];
+        for (const id of children) {
+            if (visible && !visible.has(id)) continue;
+            const rawChildren = index.get(id) ?? [];
+            const visibleChildren = visible
+                ? rawChildren.filter((c) => visible.has(c))
+                : rawChildren;
+            const hasChildren = visibleChildren.length > 0;
+            const expanded = visible ? hasChildren : isExpanded(id);
+            result.push({ id, parentId, level, hasChildren, expanded });
+            if (expanded) {
+                walk(id, level + 1);
+            }
+        }
+    }
+
+    walk(ROOT, 0);
+    return result;
+}
+
 export type Segment = { text: string; match: boolean };
 
 export function splitByMatch(text: string, query: string): Segment[] {

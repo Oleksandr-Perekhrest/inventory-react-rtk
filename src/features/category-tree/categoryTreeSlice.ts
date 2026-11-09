@@ -8,10 +8,12 @@ type CategoryId = Category["id"];
 
 type CategoryTreeState = {
     expanded: Record<CategoryId, true>;
+    focusedId: CategoryId | null;
 };
 
 const initialState: CategoryTreeState = {
     expanded: {},
+    focusedId: null,
 };
 
 export const categoryTreeSlice = createSlice({
@@ -34,12 +36,25 @@ export const categoryTreeSlice = createSlice({
         collapseAll(state) {
             state.expanded = {};
         },
+        setFocused(state, action: PayloadAction<CategoryId | null>) {
+            state.focusedId = action.payload;
+        },
     },
 });
 
-export const { toggle, expandMany, collapseAll } = categoryTreeSlice.actions;
+export const { toggle, expandMany, collapseAll, setFocused } =
+    categoryTreeSlice.actions;
 
 export const selectIsExpanded = (
     state: { categoryTree: CategoryTreeState },
     id: CategoryId,
 ): boolean => id in state.categoryTree.expanded;
+
+export const selectFocusedId = (state: {
+    categoryTree: CategoryTreeState;
+}): CategoryId | null => state.categoryTree.focusedId;
+
+export const selectIsFocused = (
+    state: { categoryTree: CategoryTreeState },
+    id: CategoryId,
+): boolean => state.categoryTree.focusedId === id;
