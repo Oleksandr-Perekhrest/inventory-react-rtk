@@ -26,14 +26,6 @@ export function createDb({
     storage: KeyValueStorage;
     now?: () => Date;
 }): Db {
-    let state: DbState =
-        loadState(storage) ??
-        (() => {
-            const seed = createSeed(now());
-            saveState(storage, seed);
-            return seed;
-        })();
-
     let warnedOnce = false;
 
     function persist(data: DbState) {
@@ -42,6 +34,14 @@ export function createDb({
             warnedOnce = true;
         }
     }
+
+    let state: DbState =
+        loadState(storage) ??
+        (() => {
+            const seed = createSeed(now());
+            persist(seed);
+            return seed;
+        })();
 
     return {
         get categories() {
