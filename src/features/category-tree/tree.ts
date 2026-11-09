@@ -5,22 +5,32 @@ import type { EntityState } from "@reduxjs/toolkit";
 import type { Category } from "../../domain";
 import type { CategoryWithCounts } from "../../api/types";
 
-export const ROOT = "ROOT";
+export const ROOT = "ROOT" as const;
+
+export type ParentKey = Category["id"] | typeof ROOT;
+export type ChildrenIndex = Map<ParentKey, Category["id"][]>;
 
 export function buildChildrenIndex(
     state: EntityState<CategoryWithCounts, Category["id"]>,
-): Map<string, Category["id"][]> {
-    const index = new Map<string, Category["id"][]>();
+): ChildrenIndex {
+    const index: ChildrenIndex = new Map();
     for (const id of state.ids) {
         const entity = state.entities[id];
         if (!entity) continue;
-        const parentKey = entity.parentId ?? ROOT;
+        const parentKey: ParentKey = entity.parentId ?? ROOT;
         const siblings = index.get(parentKey);
         if (siblings) {
             siblings.push(id);
         } else {
             index.set(parentKey, [id]);
         }
+    }
+    for (const siblings of index.values()) {
+        siblings.sort(
+            (a, b) =>
+                (state.entities[a]?.position ?? 0) -
+                (state.entities[b]?.position ?? 0),
+        );
     }
     return index;
 }
