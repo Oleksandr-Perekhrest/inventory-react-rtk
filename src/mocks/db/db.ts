@@ -1,20 +1,20 @@
 // local dependencies
 import { createSeed } from "../seed";
-import { loadState, saveState, type KeyValueStorage } from "./storage";
 import type { Product, Category, Supplier, Movement } from "../../domain";
+import {
+    loadState,
+    saveState,
+    type DbState,
+    type KeyValueStorage,
+} from "./storage";
 
-export type DbState = {
-    categories: Category[];
-    products: Product[];
-    suppliers: Supplier[];
-    movements: Movement[];
-};
+export type { DbState };
 
 export type Db = {
-    readonly categories: ReadonlyArray<Category>;
-    readonly products: ReadonlyArray<Product>;
-    readonly suppliers: ReadonlyArray<Supplier>;
-    readonly movements: ReadonlyArray<Movement>;
+    readonly categories: ReadonlyArray<Readonly<Category>>;
+    readonly products: ReadonlyArray<Readonly<Product>>;
+    readonly suppliers: ReadonlyArray<Readonly<Supplier>>;
+    readonly movements: ReadonlyArray<Readonly<Movement>>;
     transaction<T>(fn: (state: DbState) => T): T;
     reset(): void;
 };
@@ -34,31 +34,40 @@ export function createDb({
             return seed;
         })();
 
+    let warnedOnce = false;
+
+    function persist(data: DbState) {
+        if (!saveState(storage, data) && !warnedOnce) {
+            console.warn("[warehouse-manager] Failed to persist state.");
+            warnedOnce = true;
+        }
+    }
+
     return {
         get categories() {
-            return state.categories as ReadonlyArray<Category>;
+            return state.categories as ReadonlyArray<Readonly<Category>>;
         },
         get products() {
-            return state.products as ReadonlyArray<Product>;
+            return state.products as ReadonlyArray<Readonly<Product>>;
         },
         get suppliers() {
-            return state.suppliers as ReadonlyArray<Supplier>;
+            return state.suppliers as ReadonlyArray<Readonly<Supplier>>;
         },
         get movements() {
-            return state.movements as ReadonlyArray<Movement>;
+            return state.movements as ReadonlyArray<Readonly<Movement>>;
         },
 
         transaction<T>(fn: (draft: DbState) => T): T {
             const draft = structuredClone(state);
             const result = fn(draft);
             state = draft;
-            saveState(storage, state);
+            persist(state);
             return result;
         },
 
         reset() {
             state = createSeed(now());
-            saveState(storage, state);
+            persist(state);
         },
     };
 }

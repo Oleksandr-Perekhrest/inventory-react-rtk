@@ -42,9 +42,9 @@ const EnvelopeSchema = z.object({
     }),
 });
 
-export type StoredData = z.infer<typeof EnvelopeSchema>["data"];
+export type DbState = z.infer<typeof EnvelopeSchema>["data"];
 
-export function loadState(storage: KeyValueStorage): StoredData | null {
+export function loadState(storage: KeyValueStorage): DbState | null {
     try {
         const raw = storage.getItem(STORAGE_KEY);
         if (raw === null) return null;
@@ -55,18 +55,14 @@ export function loadState(storage: KeyValueStorage): StoredData | null {
     }
 }
 
-let _saveWarnedOnce = false;
-
-export function saveState(storage: KeyValueStorage, data: StoredData): void {
+export function saveState(storage: KeyValueStorage, data: DbState): boolean {
     try {
         storage.setItem(
             STORAGE_KEY,
             JSON.stringify({ version: DB_VERSION, data }),
         );
-    } catch (err) {
-        if (!_saveWarnedOnce) {
-            console.warn("[warehouse-manager] Failed to persist state:", err);
-            _saveWarnedOnce = true;
-        }
+        return true;
+    } catch {
+        return false;
     }
 }
