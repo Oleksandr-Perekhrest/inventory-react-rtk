@@ -80,6 +80,17 @@ import { formatPrice } from "../../utils/format";
 - Corners: `rounded-sm` for panels and controls.
 - Reference screen: `/design-preview` (`src/components/design-preview/`) shows the catalog layout, panel and table header styles, the stock meter and the LOW/OUT badges. New screens follow it. It is static and will be removed when the real catalog replaces it: never import from it.
 
+## Mock API
+
+Requests flow: **MSW handler → `route()` (network simulation, validation, error mapping) → controller (pure function over the db)**.
+
+- `src/mocks/api/route.ts` — `createRouteHandler({ db, network })` returns a bound `route(controller, options?)` function. `route()` returns an MSW resolver that handles delay, random-error injection, query/body validation with Zod, and error mapping.
+- `src/mocks/api/createHandlers.ts` — `createHandlers({ db, network })` assembles all MSW handlers; contains no business logic.
+- `src/mocks/api/controllers/` — one file per resource; each controller is a pure function `({ db, params, query, body }) => { status?, body? }`. Throw `ApiError` to signal client errors; any other throw becomes 500.
+- `src/mocks/api/errors.ts` — `ApiError` class + helpers (`badRequest`, `notFound`, `conflict`, `unprocessable`). Error response shape: `{ error: { code, message, fields? } }`.
+- `src/mocks/browser.ts` — creates the app-singleton `db` and MSW `worker`; imported dynamically by `main.tsx`.
+- Network simulation config (`src/mocks/api/network.ts`): delay range, error rate/mode. Toggle error mode via `setErrorMode("random" | "off")`; persisted in `localStorage` under key `warehouse-manager:network`.
+
 ## Working rules
 
 - Do NOT commit or push; the developer commits after reviewing.
