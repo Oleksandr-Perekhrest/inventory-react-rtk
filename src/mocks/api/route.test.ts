@@ -104,6 +104,9 @@ describe("controller errors", () => {
     });
 
     it("any other error returns 500 INTERNAL_ERROR", async () => {
+        const errorSpy = vi
+            .spyOn(console, "error")
+            .mockImplementation(() => {});
         server.use(
             http.get(
                 `${BASE}/api/test/generic-error`,
@@ -121,6 +124,7 @@ describe("controller errors", () => {
                 message: "An unexpected error occurred",
             },
         });
+        expect(errorSpy).toHaveBeenCalledTimes(1);
     });
 });
 
