@@ -20,7 +20,8 @@ import { createRouteHandler } from "./route";
 import type { NetworkConfig } from "./network";
 import { demoReset } from "./controllers/demo";
 import { createMemoryStorage } from "../db/storage";
-import { listProducts, listProductsQuerySchema } from "./controllers/products";
+import { listProducts } from "./controllers/products";
+import { listProductsQuerySchema } from "../../api/queries";
 
 const FIXED_NOW = new Date("2026-11-06T07:00:00Z");
 const BASE = "http://localhost";

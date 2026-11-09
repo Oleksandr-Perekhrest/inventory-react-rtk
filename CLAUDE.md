@@ -80,6 +80,18 @@ import { formatPrice } from "../../utils/format";
 - Corners: `rounded-sm` for panels and controls.
 - Reference screen: `/design-preview` (`src/components/design-preview/`) shows the catalog layout, panel and table header styles, the stock meter and the LOW/OUT badges. New screens follow it. It is static and will be removed when the real catalog replaces it: never import from it.
 
+## Data layer
+
+`src/api/baseApi.ts` — `createApi` with `reducerPath: "api"` and four tag types: `Category`, `Product`, `Supplier`, `Movement`. The `baseQuery` wraps `fetchBaseQuery` (base URL `/api` resolved against `window.location.origin`), awaits `waitForBackend()` before every request, and normalizes all failures into `ApiErrorData` (`{ status, code, message, fields? }`) from `src/api/types.ts`. Use `getErrorMessage(error)` from the same file in UI code.
+
+`src/api/endpoints/` — one file per resource that calls `baseApi.injectEndpoints(...)` and exports the generated hooks. Tag lists provide `{ type, id: "LIST" }` plus one tag per item id; `resetDemo` invalidates all four tag types.
+
+`src/api/queries.ts` — shared Zod query schemas (moved from the mock controllers) plus `paginationQuery`. Mock controllers and `createHandlers.ts` import the schemas at runtime for validation; client endpoint files import **only types** (`import type`) so Zod stays out of the main bundle via this path.
+
+`src/api/backendReady.ts` — `setBackendReady(promise)` / `waitForBackend()`. `main.tsx` calls `setBackendReady(mocksReady)` after the dynamic import of `src/mocks/start`; default is a resolved promise, so tests that never call `setBackendReady` proceed immediately.
+
+`src/store/store.ts` — `makeStore()` wires the api reducer and middleware, calls `setupListeners`. `src/store/hooks.ts` — typed `useAppDispatch` and `useAppSelector` via `withTypes`.
+
 ## Mock API
 
 Requests flow: **MSW handler → `route()` (network simulation, validation, error mapping) → controller (pure function over the db)**.

@@ -1,27 +1,16 @@
-// outsource dependencies
-import * as z from "zod";
-
 // local dependencies
 import type { Db } from "../../db";
+import { paginate } from "../pagination";
 import { notFound, badRequest } from "../errors";
-import { MovementTypeSchema } from "../../../domain";
-import { paginate, paginationQuery } from "../pagination";
+import type { MovementsQuery } from "../../../api/queries";
 import type { Paginated, MovementListItem } from "../../../api/types";
-
-export const movementsQuerySchema = z.object({
-    ...paginationQuery,
-    to: z.iso.date().optional(),
-    from: z.iso.date().optional(),
-    type: MovementTypeSchema.optional(),
-    productId: z.string().optional(),
-});
 
 export function listMovements({
     db,
     query,
 }: {
     db: Db;
-    query: z.infer<typeof movementsQuerySchema>;
+    query: MovementsQuery;
 }): { body: Paginated<MovementListItem> } {
     const { page, pageSize, type, productId, from, to } = query;
 
