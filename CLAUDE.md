@@ -99,7 +99,7 @@ Requests flow: **MSW handler → `route()` (network simulation, validation, erro
 ANALYZE=1 pnpm build   # writes stats.html (gitignored)
 ```
 
-Open `stats.html` in a browser to see the interactive treemap. Main browser-chunk cost: `tldts` (TLD trie from MSW's `tough-cookie`) ≈ 111 KB gz, Zod ≈ 34 KB gz, `@mswjs/interceptors` ≈ 24 KB gz.
+Open `stats.html` in a browser to see the interactive treemap. Main browser-chunk cost: `tldts` (TLD trie from MSW's `tough-cookie`) ≈ 111 KB gz, Zod ≈ 34 KB gz, `@mswjs/interceptors` ≈ 24 KB gz. The 500 kB build warning for the lazy `browser-*.js` chunk is expected — MSW pulls in `tldts` through `tough-cookie`; a 500 kB warning on any other chunk is a real problem.
 
 ## Working rules
 
