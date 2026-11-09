@@ -1,6 +1,6 @@
 // local dependencies
-import type { VisibleNode } from "./tree";
 import type { Category } from "../../domain";
+import { ROOT, type VisibleNode } from "./tree";
 
 type CategoryId = Category["id"];
 
@@ -78,7 +78,7 @@ export function getKeyAction(
             if (node.expanded && !searchActive) {
                 return { type: "toggle", id: node.id };
             }
-            if (node.parentId === "ROOT") return NONE;
+            if (node.parentId === ROOT) return NONE;
             const parentNode = order.find((n) => n.id === node.parentId);
             return parentNode ? { type: "focus", id: parentNode.id } : NONE;
         }

@@ -1,16 +1,19 @@
 // outsource dependencies
-import { useMemo, useState } from "react";
+import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 
 // local dependencies
 import { TreeNode } from "./TreeNode";
+import { getKeyAction } from "./navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { selectChildrenIndex } from "./selectors";
 import { getErrorMessage } from "../../api/errors";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ROOT, findMatches, collectAncestors } from "./tree";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useGetCategoriesQuery } from "../../api/endpoints/categories";
 import { INACTIVE_SEARCH, TreeSearchContext } from "./TreeSearchContext";
+import { toggle, setFocused, selectFocusedId } from "./categoryTreeSlice";
+import { ROOT, findMatches, getVisibleOrder, collectAncestors } from "./tree";
 
 const labelId = "categories-tree-label";
 
@@ -20,6 +23,10 @@ export function CategoryTree() {
     const [query, setQuery] = useState("");
     const trimmedQuery = query.trim();
     const isSearchActive = trimmedQuery !== "";
+    const dispatch = useAppDispatch();
+    const focusedId = useAppSelector(selectFocusedId);
+    const expanded = useAppSelector((state) => state.categoryTree.expanded);
+    const treeRef = useRef<HTMLUListElement>(null);
 
     const searchContext = useMemo(() => {
         if (!trimmedQuery || !data) return INACTIVE_SEARCH;
@@ -29,10 +36,62 @@ export function CategoryTree() {
         return { query: trimmedQuery, matches, visible };
     }, [data, trimmedQuery]);
 
+    const visibleOrder = useMemo(() => {
+        if (!data) return [];
+        const index = selectChildrenIndex(data);
+        const isExpanded = (id: string) => id in expanded;
+        return getVisibleOrder(
+            index,
+            isExpanded,
+            isSearchActive ? searchContext.visible : undefined,
+        );
+    }, [data, expanded, isSearchActive, searchContext.visible]);
+
+    const names = useMemo(() => {
+        const map = new Map<string, string>();
+        if (!data) return map;
+        for (const id of data.ids) {
+            const entity = data.entities[id];
+            if (entity) map.set(id, entity.name);
+        }
+        return map;
+    }, [data]);
+
+    useEffect(() => {
+        if (visibleOrder.length === 0) {
+            if (focusedId !== null) dispatch(setFocused(null));
+            return;
+        }
+        const inOrder =
+            focusedId !== null && visibleOrder.some((n) => n.id === focusedId);
+        if (!inOrder) {
+            dispatch(setFocused(visibleOrder[0].id));
+        }
+    }, [visibleOrder, focusedId, dispatch]);
+
+    const handleTreeKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            const action = getKeyAction(
+                visibleOrder,
+                focusedId,
+                e.key,
+                isSearchActive,
+                names,
+            );
+            if (action.type === "none") return;
+            e.preventDefault();
+            if (action.type === "focus") {
+                dispatch(setFocused(action.id));
+            } else {
+                dispatch(toggle(action.id));
+            }
+        },
+        [visibleOrder, focusedId, isSearchActive, names, dispatch],
+    );
+
     const rootChildIds = data
         ? (selectChildrenIndex(data).get(ROOT) ?? [])
         : [];
-
     const visibleRootIds = isSearchActive
         ? rootChildIds.filter((id) => searchContext.visible.has(id))
         : rootChildIds;
@@ -53,6 +112,12 @@ export function CategoryTree() {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
                     if (e.key === "Escape") setQuery("");
+                    if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        treeRef.current
+                            ?.querySelector<HTMLElement>('[tabindex="0"]')
+                            ?.focus();
+                    }
                 }}
             />
             <div role="status" aria-live="polite" className="sr-only">
@@ -87,9 +152,11 @@ export function CategoryTree() {
                         </p>
                     ) : (
                         <ul
+                            ref={treeRef}
                             role="tree"
                             aria-labelledby={labelId}
                             className="flex flex-col gap-0.5"
+                            onKeyDown={handleTreeKeyDown}
                         >
                             {visibleRootIds.map((id) => (
                                 <TreeNode key={id} id={id} level={1} />

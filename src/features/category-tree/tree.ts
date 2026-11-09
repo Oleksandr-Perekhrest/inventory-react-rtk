@@ -102,7 +102,7 @@ export function getVisibleOrder(
         }
     }
 
-    walk(ROOT, 0);
+    walk(ROOT, 1);
     return result;
 }
 

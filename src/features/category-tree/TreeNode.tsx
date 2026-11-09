@@ -1,16 +1,21 @@
 // outsource dependencies
 import { cn } from "cn";
-import { memo } from "react";
 import { ChevronRight } from "lucide-react";
+import { memo, useRef, useEffect } from "react";
 
 // local dependencies
 import type { Category } from "../../domain";
 import { selectChildrenIndex } from "./selectors";
 import { useTreeSearch } from "./TreeSearchContext";
 import { ROOT, splitByMatch, type ParentKey } from "./tree";
-import { toggle, selectIsExpanded } from "./categoryTreeSlice";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useGetCategoriesQuery } from "../../api/endpoints/categories";
+import {
+    toggle,
+    setFocused,
+    selectIsFocused,
+    selectIsExpanded,
+} from "./categoryTreeSlice";
 
 type Props = {
     id: Category["id"];
@@ -21,6 +26,7 @@ const EMPTY_IDS: Category["id"][] = [];
 
 function TreeNodeInner({ id, level }: Props) {
     const dispatch = useAppDispatch();
+    const liRef = useRef<HTMLLIElement>(null);
 
     const { entity, childIds, siblings } = useGetCategoriesQuery(undefined, {
         selectFromResult: ({ data }) => {
@@ -36,8 +42,17 @@ function TreeNodeInner({ id, level }: Props) {
     });
 
     const isExpanded = useAppSelector((state) => selectIsExpanded(state, id));
+    const isFocused = useAppSelector((state) => selectIsFocused(state, id));
     const { query, visible } = useTreeSearch();
     const isSearchActive = query !== "";
+
+    useEffect(() => {
+        if (!isFocused || !liRef.current) return;
+        const tree = liRef.current.closest('[role="tree"]');
+        if (tree?.contains(document.activeElement)) {
+            liRef.current.focus();
+        }
+    }, [isFocused]);
 
     if (!entity) return null;
 
@@ -55,27 +70,37 @@ function TreeNodeInner({ id, level }: Props) {
 
     return (
         <li
+            ref={liRef}
             role="treeitem"
             aria-level={level}
             aria-setsize={setSize}
             aria-posinset={posInSet}
             aria-expanded={displayHasChildren ? effectiveExpanded : undefined}
-            className="flex flex-col"
+            tabIndex={isFocused ? 0 : -1}
+            className="flex flex-col outline-none"
         >
             <div
-                className="flex h-8 items-center gap-1 rounded-sm pr-1 text-sm text-foreground"
+                className={cn(
+                    "flex h-8 cursor-pointer items-center gap-1 rounded-sm pr-1 text-sm text-foreground",
+                    isFocused &&
+                        "ring-2 ring-ring ring-offset-1 ring-offset-background",
+                )}
                 style={{ paddingLeft: `${(level - 1) * 18 + 4}px` }}
+                onClick={() => {
+                    dispatch(setFocused(id));
+                    liRef.current?.focus();
+                }}
             >
                 {displayHasChildren ? (
-                    <button
-                        type="button"
-                        tabIndex={-1}
-                        onClick={
-                            isSearchActive
-                                ? undefined
-                                : () => dispatch(toggle(id))
-                        }
+                    <span
+                        aria-hidden="true"
                         className="shrink-0 text-muted-foreground"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch(setFocused(id));
+                            liRef.current?.focus();
+                            if (!isSearchActive) dispatch(toggle(id));
+                        }}
                     >
                         <ChevronRight
                             aria-hidden="true"
@@ -84,7 +109,7 @@ function TreeNodeInner({ id, level }: Props) {
                                 effectiveExpanded && "rotate-90",
                             )}
                         />
-                    </button>
+                    </span>
                 ) : (
                     <span aria-hidden="true" className="size-3.5 shrink-0" />
                 )}
