@@ -94,7 +94,7 @@ function TreeNodeInner({ id, level }: Props) {
                               seg.match ? (
                                   <mark
                                       key={i}
-                                      className="bg-primary text-primary-foreground"
+                                      className="rounded-[2px] bg-accent px-px font-semibold text-accent-foreground"
                                   >
                                       {seg.text}
                                   </mark>
