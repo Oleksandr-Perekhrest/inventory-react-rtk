@@ -20,3 +20,9 @@ createRoot(document.getElementById("root")!).render(
         <RouterProvider router={router} />
     </StrictMode>,
 );
+
+import("./mocks/start")
+    .then(({ mocksReady }) => mocksReady)
+    .catch((err) =>
+        console.error("[warehouse-manager] MSW worker failed to start:", err),
+    );

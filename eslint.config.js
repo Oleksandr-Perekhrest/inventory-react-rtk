@@ -51,7 +51,11 @@ const perfectionistRules = {
 };
 
 export default defineConfig([
-    globalIgnores(["dist", "src/routeTree.gen.ts"]),
+    globalIgnores([
+        "dist",
+        "src/routeTree.gen.ts",
+        "public/mockServiceWorker.js",
+    ]),
     {
         files: ["**/*.{ts,tsx}"],
         extends: [

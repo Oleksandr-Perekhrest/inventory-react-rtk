@@ -1,5 +1,5 @@
 // outsource dependencies
-import { z } from "zod";
+import * as z from "zod";
 
 export const MovementTypeSchema = z.enum([
     "receipt",
