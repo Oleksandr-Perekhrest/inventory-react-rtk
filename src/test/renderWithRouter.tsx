@@ -1,4 +1,5 @@
 // outsource dependencies
+import { Provider } from "react-redux";
 import { render } from "@testing-library/react";
 import {
     createRouter,
@@ -7,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 
 // local dependencies
+import { makeStore } from "@/store/store";
 import { routeTree } from "@/routeTree.gen";
 
 export async function renderWithRouter(path: string) {
@@ -15,6 +17,10 @@ export async function renderWithRouter(path: string) {
         history: createMemoryHistory({ initialEntries: [path] }),
     });
     await router.load();
-    const result = render(<RouterProvider router={router} />);
+    const result = render(
+        <Provider store={makeStore()}>
+            <RouterProvider router={router} />
+        </Provider>,
+    );
     return { ...result, router };
 }

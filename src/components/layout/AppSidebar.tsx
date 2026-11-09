@@ -4,6 +4,7 @@ import { Link, type LinkProps } from "@tanstack/react-router";
 
 // local dependencies
 import { navItems } from "@/components/layout/navItems";
+import { DemoControls } from "@/components/layout/DemoControls";
 import { useActiveNav } from "@/components/layout/useActiveNav";
 import { WarehouseLogo } from "@/components/layout/WarehouseLogo";
 import { SidebarEdgeToggle } from "@/components/layout/SidebarEdgeToggle";
@@ -11,6 +12,7 @@ import {
     Sidebar,
     SidebarMenu,
     SidebarGroup,
+    SidebarFooter,
     SidebarHeader,
     SidebarContent,
     SidebarMenuItem,
@@ -64,6 +66,10 @@ export function AppSidebar() {
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
+            <SidebarSeparator className="data-horizontal:w-auto" />
+            <SidebarFooter className="pr-7 group-data-[collapsible=icon]:p-0">
+                <DemoControls />
+            </SidebarFooter>
             <SidebarEdgeToggle />
         </Sidebar>
     );
