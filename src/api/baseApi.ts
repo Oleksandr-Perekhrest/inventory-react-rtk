@@ -30,8 +30,7 @@ function normalizeError(error: FetchBaseQueryError): ApiErrorData {
     return {
         status: "NETWORK_ERROR",
         code: "NETWORK_ERROR",
-        message:
-            (error as { error?: string }).error ?? "Network request failed",
+        message: "Network error. Check your connection and try again.",
     };
 }
 

@@ -86,9 +86,9 @@ export function DemoControls() {
             {/* Expanded layout — hidden in icon-collapsed sidebar */}
             <div className="group-data-[collapsible=icon]:hidden flex flex-col gap-3">
                 <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="w-full gap-2"
+                    className="w-full gap-2 border border-sidebar-foreground/40 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:border-sidebar-ring focus-visible:ring-sidebar-ring"
                     onClick={() => setDialogOpen(true)}
                 >
                     <RotateCcw className="size-4" />
@@ -98,11 +98,11 @@ export function DemoControls() {
                     <div className="flex flex-col gap-0.5">
                         <label
                             htmlFor={switchId}
-                            className="cursor-pointer text-sm"
+                            className="cursor-pointer text-sm text-sidebar-foreground"
                         >
                             Simulate network errors
                         </label>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-sidebar-foreground/60">
                             About 1 in 5 requests fails
                         </span>
                     </div>
@@ -111,6 +111,7 @@ export function DemoControls() {
                         size="sm"
                         checked={errorMode === "random"}
                         onCheckedChange={handleErrorModeChange}
+                        className="data-unchecked:bg-sidebar-foreground/40 data-checked:bg-sidebar-primary focus-visible:border-sidebar-ring focus-visible:ring-sidebar-ring"
                     />
                 </div>
             </div>
