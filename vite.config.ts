@@ -51,6 +51,11 @@ export default defineConfig({
                             test: /[\\/]node_modules[\\/](radix-ui|@radix-ui|lucide-react|class-variance-authority)[\\/]/,
                             priority: 7,
                         },
+                        {
+                            name: "vendor-zod",
+                            test: /[\\/]node_modules[\\/]zod[\\/]/,
+                            priority: 6,
+                        },
                     ],
                 },
             },
