@@ -5,8 +5,9 @@ import { ChevronRight } from "lucide-react";
 
 // local dependencies
 import type { Category } from "../../domain";
-import { ROOT, type ParentKey } from "./tree";
 import { selectChildrenIndex } from "./selectors";
+import { useTreeSearch } from "./TreeSearchContext";
+import { ROOT, splitByMatch, type ParentKey } from "./tree";
 import { toggle, selectIsExpanded } from "./categoryTreeSlice";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useGetCategoriesQuery } from "../../api/endpoints/categories";
@@ -21,32 +22,36 @@ const EMPTY_IDS: Category["id"][] = [];
 function TreeNodeInner({ id, level }: Props) {
     const dispatch = useAppDispatch();
 
-    const { entity, childIds, posInSet, setSize } = useGetCategoriesQuery(
-        undefined,
-        {
-            selectFromResult: ({ data }) => {
-                const entity = data?.entities[id];
-                const index: Map<ParentKey, Category["id"][]> = data
-                    ? selectChildrenIndex(data)
-                    : new Map();
-                const childIds = index.get(id) ?? EMPTY_IDS;
-                const parentKey = entity?.parentId ?? ROOT;
-                const siblings = index.get(parentKey) ?? EMPTY_IDS;
-                return {
-                    entity,
-                    childIds,
-                    posInSet: siblings.indexOf(id) + 1,
-                    setSize: siblings.length,
-                };
-            },
+    const { entity, childIds, siblings } = useGetCategoriesQuery(undefined, {
+        selectFromResult: ({ data }) => {
+            const entity = data?.entities[id];
+            const index: Map<ParentKey, Category["id"][]> = data
+                ? selectChildrenIndex(data)
+                : new Map();
+            const childIds = index.get(id) ?? EMPTY_IDS;
+            const parentKey: ParentKey = entity?.parentId ?? ROOT;
+            const siblings = index.get(parentKey) ?? EMPTY_IDS;
+            return { entity, childIds, siblings };
         },
-    );
+    });
 
     const isExpanded = useAppSelector((state) => selectIsExpanded(state, id));
+    const { query, visible } = useTreeSearch();
+    const isSearchActive = query !== "";
 
     if (!entity) return null;
 
-    const hasChildren = childIds.length > 0;
+    const visibleChildIds = isSearchActive
+        ? childIds.filter((cid) => visible.has(cid))
+        : childIds;
+    const displayHasChildren = visibleChildIds.length > 0;
+    const effectiveExpanded = isSearchActive ? displayHasChildren : isExpanded;
+
+    const visibleSiblings = isSearchActive
+        ? siblings.filter((sid) => visible.has(sid))
+        : siblings;
+    const posInSet = visibleSiblings.indexOf(id) + 1;
+    const setSize = visibleSiblings.length;
 
     return (
         <li
@@ -54,39 +59,58 @@ function TreeNodeInner({ id, level }: Props) {
             aria-level={level}
             aria-setsize={setSize}
             aria-posinset={posInSet}
-            aria-expanded={hasChildren ? isExpanded : undefined}
+            aria-expanded={displayHasChildren ? effectiveExpanded : undefined}
             className="flex flex-col"
         >
             <div
                 className="flex h-8 items-center gap-1 rounded-sm pr-1 text-sm text-foreground"
                 style={{ paddingLeft: `${(level - 1) * 18 + 4}px` }}
             >
-                {hasChildren ? (
+                {displayHasChildren ? (
                     <button
                         type="button"
                         tabIndex={-1}
-                        onClick={() => dispatch(toggle(id))}
+                        onClick={
+                            isSearchActive
+                                ? undefined
+                                : () => dispatch(toggle(id))
+                        }
                         className="shrink-0 text-muted-foreground"
                     >
                         <ChevronRight
                             aria-hidden="true"
                             className={cn(
                                 "size-3.5 transition-transform",
-                                isExpanded && "rotate-90",
+                                effectiveExpanded && "rotate-90",
                             )}
                         />
                     </button>
                 ) : (
                     <span aria-hidden="true" className="size-3.5 shrink-0" />
                 )}
-                <span className="min-w-0 flex-1 truncate">{entity.name}</span>
+                <span className="min-w-0 flex-1 truncate">
+                    {isSearchActive
+                        ? splitByMatch(entity.name, query).map((seg, i) =>
+                              seg.match ? (
+                                  <mark
+                                      key={i}
+                                      className="bg-primary text-primary-foreground"
+                                  >
+                                      {seg.text}
+                                  </mark>
+                              ) : (
+                                  <span key={i}>{seg.text}</span>
+                              ),
+                          )
+                        : entity.name}
+                </span>
                 <span className="shrink-0 font-mono text-xs text-muted-foreground">
                     {entity.totalProductCount}
                 </span>
             </div>
-            {hasChildren && isExpanded && (
+            {displayHasChildren && effectiveExpanded && (
                 <ul role="group">
-                    {childIds.map((childId) => (
+                    {visibleChildIds.map((childId) => (
                         <TreeNode
                             key={childId}
                             id={childId}
