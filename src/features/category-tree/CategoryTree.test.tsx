@@ -93,11 +93,7 @@ function renderTree() {
     );
 }
 
-beforeAll(() =>
-    server.listen({ onUnhandledFrame: "error" } as Parameters<
-        typeof server.listen
-    >[0]),
-);
+beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterAll(() => server.close());
 
 afterEach(() => {
