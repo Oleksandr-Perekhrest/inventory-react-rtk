@@ -32,7 +32,3 @@ export type ApiErrorData = {
     message: string;
     fields?: Record<string, string>;
 };
-
-export function getErrorMessage(error: ApiErrorData): string {
-    return error.message;
-}

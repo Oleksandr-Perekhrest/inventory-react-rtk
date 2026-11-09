@@ -20,6 +20,12 @@ declare module "@tanstack/react-router" {
 
 const store = makeStore();
 
+const mocksStart = import("./mocks/start").then((m) => m.mocksReady);
+setBackendReady(mocksStart);
+mocksStart.catch((err) =>
+    console.error("[warehouse-manager] MSW worker failed to start:", err),
+);
+
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <Provider store={store}>
@@ -27,9 +33,3 @@ createRoot(document.getElementById("root")!).render(
         </Provider>
     </StrictMode>,
 );
-
-import("./mocks/start")
-    .then(({ mocksReady }) => setBackendReady(mocksReady))
-    .catch((err) =>
-        console.error("[warehouse-manager] MSW worker failed to start:", err),
-    );

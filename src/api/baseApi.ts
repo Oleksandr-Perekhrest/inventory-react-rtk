@@ -60,7 +60,17 @@ const baseQueryWithBackend: BaseQueryFn<
     unknown,
     ApiErrorData
 > = async (args, api, extraOptions) => {
-    await waitForBackend();
+    try {
+        await waitForBackend();
+    } catch {
+        return {
+            error: {
+                status: "NETWORK_ERROR",
+                code: "BACKEND_UNAVAILABLE",
+                message: "The mock backend failed to initialize",
+            },
+        };
+    }
     const result = await rawBaseQuery(args, api, extraOptions);
     if (result.error) {
         return { error: normalizeError(result.error) };
