@@ -1,8 +1,7 @@
 // outsource dependencies
-import { Provider } from "react-redux";
 import { http, HttpResponse } from "msw";
 import userEvent from "@testing-library/user-event";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import {
     it,
     expect,
@@ -14,10 +13,9 @@ import {
 } from "vitest";
 
 // local dependencies
-import { makeStore } from "@/store/store";
-import { CategoryTree } from "./CategoryTree";
 import { setBackendReady } from "@/api/backendReady";
 import { createMockServer } from "@/test/mockServer";
+import { renderWithRouter } from "@/test/renderWithRouter";
 
 // 7 categories, 3 levels; array order ≠ position order to exercise sorting
 const CATEGORIES = [
@@ -85,12 +83,8 @@ function categoriesHandler() {
     return http.get("/api/categories", () => HttpResponse.json(CATEGORIES));
 }
 
-function renderTree() {
-    return render(
-        <Provider store={makeStore()}>
-            <CategoryTree />
-        </Provider>,
-    );
+async function renderTree() {
+    return renderWithRouter("/catalog");
 }
 
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
@@ -107,7 +101,7 @@ describe("Rendering and expand", () => {
     });
 
     it("renders root categories in position order with their counts", async () => {
-        renderTree();
+        await renderTree();
 
         const items = await screen.findAllByRole("treeitem");
         expect(items).toHaveLength(3);
@@ -120,7 +114,7 @@ describe("Rendering and expand", () => {
     });
 
     it("does not render children before the parent is expanded", async () => {
-        renderTree();
+        await renderTree();
 
         await screen.findAllByRole("treeitem");
 
@@ -137,7 +131,7 @@ describe("Rendering and expand", () => {
 
     it("clicking the chevron sets aria-expanded='true' and shows children", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         const electronicsItem = await screen.findByRole("treeitem", {
             name: /Electronics/i,
@@ -155,7 +149,7 @@ describe("Rendering and expand", () => {
 
     it("clicking the chevron again collapses the parent and hides children", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         const electronicsItem = await screen.findByRole("treeitem", {
             name: /Electronics/i,
@@ -181,7 +175,7 @@ describe("Search filter", () => {
 
     it("shows only matches and ancestors, highlights the match in a mark, and updates the live region", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         // Expand Furniture first — unrelated to the "comp" search path
         const furnitureItem = await screen.findByRole("treeitem", {
@@ -216,7 +210,7 @@ describe("Search filter", () => {
 
     it("pressing Escape restores the full tree with the user's earlier expansion intact", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         const furnitureItem = await screen.findByRole("treeitem", {
             name: /Furniture/i,
@@ -256,7 +250,7 @@ describe("No matches", () => {
 
     it("shows 'No categories match' with the query and hides the tree", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         await screen.findAllByRole("treeitem");
 
@@ -276,7 +270,7 @@ describe("Clear button", () => {
     });
 
     it("does not appear when the input is empty", async () => {
-        renderTree();
+        await renderTree();
 
         await screen.findAllByRole("treeitem");
 
@@ -287,7 +281,7 @@ describe("Clear button", () => {
 
     it("appears with text in the input, clears on click, and returns focus to the input", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         await screen.findAllByRole("treeitem");
 
@@ -317,7 +311,7 @@ describe("Keyboard navigation", () => {
 
     it("Tab from the search input lands on the first tree item", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         const input = screen.getByRole("searchbox", {
             name: /search categories/i,
@@ -336,7 +330,7 @@ describe("Keyboard navigation", () => {
 
     it("ArrowDown moves focus to the next item", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         await screen.findAllByRole("treeitem");
 
@@ -362,7 +356,7 @@ describe("Keyboard navigation", () => {
 
     it("ArrowRight on a collapsed parent expands it", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         await screen.findAllByRole("treeitem");
 
@@ -387,7 +381,7 @@ describe("Keyboard navigation", () => {
 
     it("ArrowLeft on an expanded parent collapses it", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         await screen.findAllByRole("treeitem");
 
@@ -419,7 +413,7 @@ describe("Keyboard navigation", () => {
 
     it("Home moves focus to the first item and End moves focus to the last item", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         await screen.findAllByRole("treeitem");
 
@@ -451,7 +445,7 @@ describe("Keyboard navigation", () => {
 
     it("typing a letter focuses the next item whose name starts with that letter", async () => {
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         await screen.findAllByRole("treeitem");
 
@@ -492,7 +486,7 @@ describe("Error and retry", () => {
             ),
         );
 
-        renderTree();
+        await renderTree();
 
         await screen.findByText("Internal server error");
         expect(
@@ -517,7 +511,7 @@ describe("Error and retry", () => {
         );
 
         const user = userEvent.setup();
-        renderTree();
+        await renderTree();
 
         await screen.findByText("Internal server error");
 

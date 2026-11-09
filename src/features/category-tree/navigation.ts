@@ -6,9 +6,10 @@ type CategoryId = Category["id"];
 
 type FocusAction = { type: "focus"; id: CategoryId };
 type ToggleAction = { type: "toggle"; id: CategoryId };
+export type SelectAction = { type: "select"; id: CategoryId };
 type NoneAction = { type: "none" };
 
-export type KeyAction = FocusAction | ToggleAction | NoneAction;
+export type KeyAction = FocusAction | ToggleAction | SelectAction | NoneAction;
 
 const NONE: NoneAction = { type: "none" };
 
@@ -84,8 +85,7 @@ export function getKeyAction(
         }
         case "Enter":
         case " ": {
-            if (searchActive) return NONE;
-            return node.hasChildren ? { type: "toggle", id: node.id } : NONE;
+            return { type: "select", id: node.id };
         }
         default: {
             if (!isPrintable(key)) return NONE;

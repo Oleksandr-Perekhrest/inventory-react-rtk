@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { selectChildrenIndex } from "./selectors";
 import { getErrorMessage } from "../../api/errors";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSelectCategory } from "../catalog/useCatalogSearch";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useGetCategoriesQuery } from "../../api/endpoints/categories";
 import { INACTIVE_SEARCH, TreeSearchContext } from "./TreeSearchContext";
@@ -26,6 +27,7 @@ export function CategoryTree() {
     const isSearchActive = trimmedQuery !== "";
     const dispatch = useAppDispatch();
     const focusedId = useAppSelector(selectFocusedId);
+    const selectCategory = useSelectCategory();
     const expanded = useAppSelector((state) => state.categoryTree.expanded);
     const treeRef = useRef<HTMLUListElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -84,11 +86,20 @@ export function CategoryTree() {
             e.preventDefault();
             if (action.type === "focus") {
                 dispatch(setFocused(action.id));
-            } else {
+            } else if (action.type === "toggle") {
                 dispatch(toggle(action.id));
+            } else {
+                selectCategory(action.id);
             }
         },
-        [visibleOrder, focusedId, isSearchActive, names, dispatch],
+        [
+            visibleOrder,
+            focusedId,
+            isSearchActive,
+            names,
+            dispatch,
+            selectCategory,
+        ],
     );
 
     const rootChildIds = data

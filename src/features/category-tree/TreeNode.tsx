@@ -11,6 +11,10 @@ import { ROOT, splitByMatch, type ParentKey } from "./tree";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useGetCategoriesQuery } from "../../api/endpoints/categories";
 import {
+    useSelectCategory,
+    useIsCategorySelected,
+} from "../catalog/useCatalogSearch";
+import {
     toggle,
     setFocused,
     selectIsFocused,
@@ -43,6 +47,8 @@ function TreeNodeInner({ id, level }: Props) {
 
     const isExpanded = useAppSelector((state) => selectIsExpanded(state, id));
     const isFocused = useAppSelector((state) => selectIsFocused(state, id));
+    const isSelected = useIsCategorySelected(id);
+    const selectCategory = useSelectCategory();
     const { query, visible } = useTreeSearch();
     const isSearchActive = query !== "";
 
@@ -77,12 +83,18 @@ function TreeNodeInner({ id, level }: Props) {
             aria-posinset={posInSet}
             tabIndex={isFocused ? 0 : -1}
             aria-expanded={displayHasChildren ? effectiveExpanded : undefined}
+            aria-selected={isSelected ? true : undefined}
             className="flex flex-col outline-none [&:focus-visible>div:first-child]:ring-2 [&:focus-visible>div:first-child]:ring-ring"
         >
             <div
-                className="flex h-8 cursor-pointer items-center gap-1 rounded-sm pr-1 text-sm text-foreground"
+                className={cn(
+                    "flex h-8 cursor-pointer items-center gap-1 rounded-sm pr-1 text-sm text-foreground",
+                    isSelected &&
+                        "bg-secondary text-secondary-foreground font-medium",
+                )}
                 style={{ paddingLeft: `${(level - 1) * 18 + 4}px` }}
                 onClick={() => {
+                    selectCategory(id);
                     dispatch(setFocused(id));
                     liRef.current?.focus();
                 }}
