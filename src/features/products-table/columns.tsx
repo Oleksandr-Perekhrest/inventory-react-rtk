@@ -1,12 +1,18 @@
 // outsource dependencies
-import { legacyCreateColumnHelper } from "@tanstack/react-table/legacy";
+import {
+    tableFeatures,
+    rowSortingFeature,
+    createColumnHelper,
+} from "@tanstack/react-table";
 
 // local dependencies
 import type { Product } from "../../domain";
 import { CategoryCell } from "./CategoryCell";
 import { stockStatus, formatPrice, formatQuantity } from "./helpers";
 
-const columnHelper = legacyCreateColumnHelper<Product>();
+export const features = tableFeatures({ rowSortingFeature });
+
+const columnHelper = createColumnHelper<typeof features, Product>();
 
 export const columns = columnHelper.columns([
     columnHelper.accessor("name", {

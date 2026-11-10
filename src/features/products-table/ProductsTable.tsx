@@ -1,12 +1,12 @@
 // outsource dependencies
 import { cn } from "cn";
-import { flexRender } from "@tanstack/react-table";
-import type { SortingState } from "@tanstack/react-table";
-import { useLegacyTable } from "@tanstack/react-table/legacy";
+import { useMemo } from "react";
+import { useTable } from "@tanstack/react-table";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 // local dependencies
-import { columns } from "./columns";
+import type { Product } from "../../domain";
+import { columns, features } from "./columns";
 import { Button } from "@/components/ui/button";
 import { getErrorMessage } from "../../api/errors";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +27,7 @@ import {
 const HEADER_CLASS =
     "h-9 bg-muted px-3 font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";
 const RIGHT_ALIGN = new Set(["quantity", "minQuantity", "price"]);
+const EMPTY_PRODUCTS: Product[] = [];
 
 function isSortKey(id: string): id is CatalogSearch["sort"] {
     return id === "name" || id === "sku" || id === "quantity" || id === "price";
@@ -37,13 +38,15 @@ export function ProductsTable() {
     const { data, isLoading, isFetching, isError, error, refetch } =
         useCatalogProducts();
 
-    const sorting: SortingState = [
-        { id: search.sort, desc: search.order === "desc" },
-    ];
+    const sorting = useMemo(
+        () => [{ id: search.sort, desc: search.order === "desc" }],
+        [search.sort, search.order],
+    );
 
-    const table = useLegacyTable({
-        data: data?.items ?? [],
+    const table = useTable({
+        features,
         columns,
+        data: data?.items ?? EMPTY_PRODUCTS,
         state: { sorting },
         onSortingChange: (updaterOrValue) => {
             const newSorting =
@@ -60,6 +63,7 @@ export function ProductsTable() {
         },
         manualSorting: true,
         enableSortingRemoval: false,
+        sortDescFirst: false,
     });
 
     if (isError && !data) {
@@ -130,11 +134,9 @@ export function ProductsTable() {
                                                     )
                                                 }
                                             >
-                                                {flexRender(
-                                                    header.column.columnDef
-                                                        .header,
-                                                    header.getContext(),
-                                                )}
+                                                <table.FlexRender
+                                                    header={header}
+                                                />
                                                 {isSorted === "asc" ? (
                                                     <ArrowUp
                                                         aria-hidden="true"
@@ -153,10 +155,7 @@ export function ProductsTable() {
                                                 )}
                                             </button>
                                         ) : (
-                                            flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext(),
-                                            )
+                                            <table.FlexRender header={header} />
                                         )}
                                     </TableHead>
                                 );
@@ -195,7 +194,7 @@ export function ProductsTable() {
                     ) : (
                         table.getRowModel().rows.map((row) => (
                             <TableRow key={row.id}>
-                                {row.getVisibleCells().map((cell) => (
+                                {row.getAllCells().map((cell) => (
                                     <TableCell
                                         key={cell.id}
                                         className={cn(
@@ -203,10 +202,7 @@ export function ProductsTable() {
                                                 "text-right",
                                         )}
                                     >
-                                        {flexRender(
-                                            cell.column.columnDef.cell,
-                                            cell.getContext(),
-                                        )}
+                                        <table.FlexRender cell={cell} />
                                     </TableCell>
                                 ))}
                             </TableRow>
