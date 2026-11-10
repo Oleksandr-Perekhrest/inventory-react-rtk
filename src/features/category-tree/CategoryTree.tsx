@@ -10,12 +10,20 @@ import { Button } from "@/components/ui/button";
 import { selectChildrenIndex } from "./selectors";
 import { getErrorMessage } from "../../api/errors";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSelectCategory } from "../catalog/useCatalogSearch";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useGetCategoriesQuery } from "../../api/endpoints/categories";
 import { INACTIVE_SEARCH, TreeSearchContext } from "./TreeSearchContext";
-import { toggle, setFocused, selectFocusedId } from "./categoryTreeSlice";
 import { ROOT, findMatches, getVisibleOrder, collectAncestors } from "./tree";
+import {
+    useSelectCategory,
+    useSelectedCategoryId,
+} from "../catalog/useCatalogSearch";
+import {
+    toggle,
+    expandMany,
+    setFocused,
+    selectFocusedId,
+} from "./categoryTreeSlice";
 
 const labelId = "categories-tree-label";
 
@@ -28,6 +36,8 @@ export function CategoryTree() {
     const dispatch = useAppDispatch();
     const focusedId = useAppSelector(selectFocusedId);
     const selectCategory = useSelectCategory();
+    const selectedId = useSelectedCategoryId();
+    const selectedEntityExists = !!selectedId && !!data?.entities[selectedId];
     const expanded = useAppSelector((state) => state.categoryTree.expanded);
     const treeRef = useRef<HTMLUListElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +82,14 @@ export function CategoryTree() {
             dispatch(setFocused(visibleOrder[0].id));
         }
     }, [visibleOrder, focusedId, dispatch]);
+
+    useEffect(() => {
+        if (isSearchActive || !selectedId || !selectedEntityExists) return;
+        const ancestors = collectAncestors(data!, new Set([selectedId]));
+        dispatch(expandMany([...ancestors]));
+        dispatch(setFocused(selectedId));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedId, selectedEntityExists, isSearchActive, dispatch]);
 
     const handleTreeKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
