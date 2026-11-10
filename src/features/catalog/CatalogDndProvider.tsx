@@ -1,6 +1,11 @@
 // outsource dependencies
 import { useCallback, type ReactNode } from "react";
 import {
+    Accessibility,
+    type defaultPreset,
+    PointerActivationConstraints,
+} from "@dnd-kit/dom";
+import {
     DragOverlay,
     PointerSensor,
     DragDropProvider,
@@ -22,9 +27,30 @@ import {
     resolveCategoryDrop,
 } from "@/features/category-tree/dnd";
 
-// PointerActivationConstraints is not re-exported by @dnd-kit/react (only in
-// @dnd-kit/dom). Sensor configured without activation constraints.
-const sensors = [PointerSensor.configure({})];
+// The Accessibility plugin adds role="button", tabindex="0" and keyboard
+// instructions to every draggable, which breaks the ARIA tree (roving
+// tabindex, no interactive children in treeitem); announcements are handled
+// by the tree itself in a later step.
+type PluginList = (typeof defaultPreset)["plugins"];
+
+const noAccessibilityPlugins = (defaults: PluginList): PluginList =>
+    defaults.filter((plugin) => plugin !== Accessibility);
+
+const sensors = [
+    PointerSensor.configure({
+        activationConstraints(event) {
+            if (event.pointerType === "touch") {
+                return [
+                    new PointerActivationConstraints.Delay({
+                        value: 250,
+                        tolerance: 5,
+                    }),
+                ];
+            }
+            return [new PointerActivationConstraints.Distance({ value: 6 })];
+        },
+    }),
+];
 
 function computeDrop(operation: DragMoveEvent["operation"], state: RootState) {
     const { source, target, position } = operation;
@@ -95,6 +121,7 @@ export function CatalogDndProvider({ children }: { children: ReactNode }) {
     return (
         <DragDropProvider
             sensors={sensors}
+            plugins={noAccessibilityPlugins}
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
         >

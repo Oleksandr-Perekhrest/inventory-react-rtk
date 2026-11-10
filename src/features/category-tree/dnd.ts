@@ -24,7 +24,7 @@ export function isCategoryDndData(data: unknown): data is CategoryDndData {
         typeof data === "object" &&
         data !== null &&
         "categoryId" in data &&
-        typeof (data as Record<string, unknown>).categoryId === "string"
+        typeof data.categoryId === "string"
     );
 }
 

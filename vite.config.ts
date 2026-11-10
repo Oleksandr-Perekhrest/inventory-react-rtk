@@ -57,6 +57,11 @@ export default defineConfig({
                             priority: 7,
                         },
                         {
+                            name: "vendor-dnd",
+                            test: /[\\/]node_modules[\\/](@dnd-kit|@preact[\\/]signals-core)[\\/]/,
+                            priority: 10,
+                        },
+                        {
                             name: "vendor-zod",
                             test: /[\\/]node_modules[\\/]zod[\\/]/,
                             priority: 6,
