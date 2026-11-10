@@ -1,5 +1,5 @@
 // local dependencies
-import type { Category } from "../../domain";
+import type { Category } from "@/domain";
 import { ROOT, type VisibleNode } from "./tree";
 
 type CategoryId = Category["id"];

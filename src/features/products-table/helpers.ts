@@ -1,5 +1,5 @@
 // local dependencies
-import type { Unit, Product } from "../../domain";
+import type { Unit, Product } from "@/domain";
 
 export function stockStatus(product: Product): "out" | "low" | "ok" {
     if (product.quantity === 0) return "out";

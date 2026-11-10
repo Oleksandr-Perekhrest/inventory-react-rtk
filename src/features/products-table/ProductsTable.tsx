@@ -5,16 +5,16 @@ import { useTable } from "@tanstack/react-table";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 // local dependencies
-import type { Product } from "../../domain";
+import type { Product } from "@/domain";
 import { columns, features } from "./columns";
+import { getErrorMessage } from "@/api/errors";
 import { Button } from "@/components/ui/button";
-import { getErrorMessage } from "../../api/errors";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CatalogSearch } from "../catalog/catalogSearch";
+import type { CatalogSearch } from "@/features/catalog/catalogSearch";
 import {
     useCatalogSearch,
     useCatalogProducts,
-} from "../catalog/useCatalogSearch";
+} from "@/features/catalog/useCatalogSearch";
 import {
     Table,
     TableRow,

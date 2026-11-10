@@ -4,12 +4,12 @@ import { useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // local dependencies
-import { productsApi } from "../../api/endpoints/products";
-import { toProductsParams } from "../catalog/catalogSearch";
+import { productsApi } from "@/api/endpoints/products";
+import { toProductsParams } from "@/features/catalog/catalogSearch";
 import {
     useCatalogSearch,
     useCatalogProducts,
-} from "../catalog/useCatalogSearch";
+} from "@/features/catalog/useCatalogSearch";
 
 const DEFAULT_PAGE_SIZES = [10, 20, 50];
 

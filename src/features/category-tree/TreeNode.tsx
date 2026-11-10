@@ -4,13 +4,13 @@ import { ChevronRight } from "lucide-react";
 import { memo, useRef, useEffect } from "react";
 
 // local dependencies
-import type { Category } from "../../domain";
+import type { Category } from "@/domain";
 import { selectChildrenIndex } from "./selectors";
 import { ROOT, splitByMatch, type ParentKey } from "./tree";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useTreeSearch, useTreeSelect } from "./TreeSearchContext";
-import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { useIsCategorySelected } from "../catalog/useCatalogSearch";
-import { useGetCategoriesQuery } from "../../api/endpoints/categories";
+import { useGetCategoriesQuery } from "@/api/endpoints/categories";
+import { useIsCategorySelected } from "@/features/catalog/useCatalogSearch";
 import {
     toggle,
     setFocused,

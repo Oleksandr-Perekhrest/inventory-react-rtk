@@ -3,7 +3,7 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 
 // local dependencies
 import { productsApi } from "../api/endpoints/products";
-import { CatalogPage } from "../features/category-tree/CatalogPage";
+import { CatalogPage } from "../features/catalog/CatalogPage";
 import {
     toProductsParams,
     catalogSearchSchema,

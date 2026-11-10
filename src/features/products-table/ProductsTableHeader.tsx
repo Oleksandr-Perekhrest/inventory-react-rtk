@@ -2,12 +2,12 @@
 import { X } from "lucide-react";
 
 // local dependencies
-import { useGetCategoriesQuery } from "../../api/endpoints/categories";
+import { useGetCategoriesQuery } from "@/api/endpoints/categories";
 import {
     useSelectCategory,
     useCatalogProducts,
     useSelectedCategoryId,
-} from "../catalog/useCatalogSearch";
+} from "@/features/catalog/useCatalogSearch";
 
 export function ProductsTableHeader() {
     const categoryId = useSelectedCategoryId();

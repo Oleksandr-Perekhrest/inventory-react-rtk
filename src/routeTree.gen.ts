@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CatalogRouteImport } from './routes/catalog'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as DesignPreviewRouteImport } from './routes/design-preview'
 import { Route as MovementsRouteImport } from './routes/movements'
 import { Route as ReceivingRouteImport } from './routes/receiving'
 
@@ -31,11 +30,6 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DesignPreviewRoute = DesignPreviewRouteImport.update({
-  id: '/design-preview',
-  path: '/design-preview',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MovementsRoute = MovementsRouteImport.update({
   id: '/movements',
   path: '/movements',
@@ -51,7 +45,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
   '/dashboard': typeof DashboardRoute
-  '/design-preview': typeof DesignPreviewRoute
   '/movements': typeof MovementsRoute
   '/receiving': typeof ReceivingRoute
 }
@@ -59,7 +52,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
   '/dashboard': typeof DashboardRoute
-  '/design-preview': typeof DesignPreviewRoute
   '/movements': typeof MovementsRoute
   '/receiving': typeof ReceivingRoute
 }
@@ -68,42 +60,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/catalog': typeof CatalogRoute
   '/dashboard': typeof DashboardRoute
-  '/design-preview': typeof DesignPreviewRoute
   '/movements': typeof MovementsRoute
   '/receiving': typeof ReceivingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/catalog'
-    | '/dashboard'
-    | '/design-preview'
-    | '/movements'
-    | '/receiving'
+  fullPaths: '/' | '/catalog' | '/dashboard' | '/movements' | '/receiving'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/catalog'
-    | '/dashboard'
-    | '/design-preview'
-    | '/movements'
-    | '/receiving'
-  id:
-    | '__root__'
-    | '/'
-    | '/catalog'
-    | '/dashboard'
-    | '/design-preview'
-    | '/movements'
-    | '/receiving'
+  to: '/' | '/catalog' | '/dashboard' | '/movements' | '/receiving'
+  id: '__root__' | '/' | '/catalog' | '/dashboard' | '/movements' | '/receiving'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CatalogRoute: typeof CatalogRoute
   DashboardRoute: typeof DashboardRoute
-  DesignPreviewRoute: typeof DesignPreviewRoute
   MovementsRoute: typeof MovementsRoute
   ReceivingRoute: typeof ReceivingRoute
 }
@@ -131,13 +102,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/design-preview': {
-      id: '/design-preview'
-      path: '/design-preview'
-      fullPath: '/design-preview'
-      preLoaderRoute: typeof DesignPreviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/movements': {
       id: '/movements'
       path: '/movements'
@@ -159,7 +123,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CatalogRoute: CatalogRoute,
   DashboardRoute: DashboardRoute,
-  DesignPreviewRoute: DesignPreviewRoute,
   MovementsRoute: MovementsRoute,
   ReceivingRoute: ReceivingRoute,
 }

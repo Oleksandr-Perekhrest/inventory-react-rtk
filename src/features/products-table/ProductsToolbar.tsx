@@ -5,8 +5,8 @@ import { useRef, useState, useEffect } from "react";
 
 // local dependencies
 import { Input } from "@/components/ui/input";
-import type { CatalogSearch } from "../catalog/catalogSearch";
-import { useCatalogSearch } from "../catalog/useCatalogSearch";
+import type { CatalogSearch } from "@/features/catalog/catalogSearch";
+import { useCatalogSearch } from "@/features/catalog/useCatalogSearch";
 
 type StockValue = CatalogSearch["stock"];
 

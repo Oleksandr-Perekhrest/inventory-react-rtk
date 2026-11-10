@@ -3,7 +3,7 @@ import { it, expect, describe } from "vitest";
 import { createEntityAdapter } from "@reduxjs/toolkit";
 
 // local dependencies
-import type { CategoryWithCounts } from "../../api/types";
+import type { CategoryWithCounts } from "@/api/types";
 import {
     ROOT,
     findMatches,

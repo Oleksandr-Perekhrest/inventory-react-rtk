@@ -2,7 +2,7 @@
 import { useContext, createContext } from "react";
 
 // local dependencies
-import type { Category } from "../../domain";
+import type { Category } from "@/domain";
 
 export type TreeSearchState = {
     query: string;

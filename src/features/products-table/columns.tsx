@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-table";
 
 // local dependencies
-import type { Product } from "../../domain";
+import type { Product } from "@/domain";
 import { CategoryCell } from "./CategoryCell";
 import { stockStatus, formatPrice, formatQuantity } from "./helpers";
 

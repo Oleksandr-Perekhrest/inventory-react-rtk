@@ -2,7 +2,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 // local dependencies
-import type { Category } from "../../domain";
+import type { Category } from "@/domain";
 
 type CategoryId = Category["id"];
 

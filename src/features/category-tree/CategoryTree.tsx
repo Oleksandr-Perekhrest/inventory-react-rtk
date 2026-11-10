@@ -6,23 +6,23 @@ import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { TreeNode } from "./TreeNode";
 import { getKeyAction } from "./navigation";
 import { Input } from "@/components/ui/input";
+import { getErrorMessage } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { selectChildrenIndex } from "./selectors";
-import { getErrorMessage } from "../../api/errors";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { useGetCategoriesQuery } from "../../api/endpoints/categories";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useGetCategoriesQuery } from "@/api/endpoints/categories";
 import { ROOT, findMatches, getVisibleOrder, collectAncestors } from "./tree";
-import {
-    useSelectCategory,
-    useSelectedCategoryId,
-} from "../catalog/useCatalogSearch";
 import {
     toggle,
     expandMany,
     setFocused,
     selectFocusedId,
 } from "./categoryTreeSlice";
+import {
+    useSelectCategory,
+    useSelectedCategoryId,
+} from "@/features/catalog/useCatalogSearch";
 import {
     INACTIVE_SEARCH,
     TreeSearchContext,

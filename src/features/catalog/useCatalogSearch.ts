@@ -3,10 +3,10 @@ import { useCallback } from "react";
 import { getRouteApi } from "@tanstack/react-router";
 
 // local dependencies
-import type { Category } from "../../domain";
+import type { Category } from "@/domain";
 import { toProductsParams } from "./catalogSearch";
 import type { CatalogSearch } from "./catalogSearch";
-import { useGetProductsQuery } from "../../api/endpoints/products";
+import { useGetProductsQuery } from "@/api/endpoints/products";
 
 const routeApi = getRouteApi("/catalog");
 

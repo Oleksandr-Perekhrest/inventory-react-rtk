@@ -1,9 +1,9 @@
 // local dependencies
-import { CategoryTree } from "./CategoryTree";
-import { ProductsTable } from "../products-table/ProductsTable";
-import { ProductsToolbar } from "../products-table/ProductsToolbar";
-import { ProductsPagination } from "../products-table/ProductsPagination";
-import { ProductsTableHeader } from "../products-table/ProductsTableHeader";
+import { CategoryTree } from "@/features/category-tree/CategoryTree";
+import { ProductsTable } from "@/features/products-table/ProductsTable";
+import { ProductsToolbar } from "@/features/products-table/ProductsToolbar";
+import { ProductsPagination } from "@/features/products-table/ProductsPagination";
+import { ProductsTableHeader } from "@/features/products-table/ProductsTableHeader";
 
 export function CatalogPage() {
     return (

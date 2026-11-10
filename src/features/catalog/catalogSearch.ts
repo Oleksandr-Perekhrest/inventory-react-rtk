@@ -2,7 +2,7 @@
 import * as z from "zod";
 
 // local dependencies
-import type { ProductsParams } from "../../api/queries";
+import type { ProductsParams } from "@/api/queries";
 
 export const CATALOG_SEARCH_DEFAULTS = {
     sort: "name",
