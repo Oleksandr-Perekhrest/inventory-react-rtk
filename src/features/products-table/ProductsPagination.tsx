@@ -1,6 +1,6 @@
 // outsource dependencies
 import { cn } from "cn";
-import { useRef, useEffect } from "react";
+import { useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // local dependencies
@@ -19,13 +19,7 @@ const NAV_BTN =
 export function ProductsPagination() {
     const { search, updateSearch } = useCatalogSearch();
     const { data } = useCatalogProducts();
-    const updateSearchRef = useRef(updateSearch);
     const prefetchProducts = productsApi.usePrefetch("getProducts");
-
-    // Keep ref current so the out-of-bounds effect never uses a stale closure
-    useEffect(() => {
-        updateSearchRef.current = updateSearch;
-    });
 
     const total = data?.total ?? 0;
     const { page, pageSize } = search;
@@ -42,9 +36,9 @@ export function ProductsPagination() {
         if (!data || data.total === 0) return;
         const computedLast = Math.ceil(data.total / search.pageSize);
         if (search.page > computedLast) {
-            updateSearchRef.current({ page: computedLast }, { replace: true });
+            updateSearch({ page: computedLast }, { replace: true });
         }
-    }, [data, search.page, search.pageSize]);
+    }, [data, search.page, search.pageSize, updateSearch]);
 
     return (
         <nav

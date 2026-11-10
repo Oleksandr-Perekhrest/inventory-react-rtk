@@ -21,14 +21,13 @@ export function ProductsToolbar() {
     const [localValue, setLocalValue] = useState(search.q ?? "");
     const inputRef = useRef<HTMLInputElement>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Keeps the latest search.q available inside the debounced timeout callback,
+    // which otherwise closes over a stale value captured 300 ms earlier.
     const searchQRef = useRef(search.q);
-    const updateSearchRef = useRef(updateSearch);
 
-    // Keep refs current so timeout callbacks never use stale closures
     useEffect(() => {
         searchQRef.current = search.q;
-        updateSearchRef.current = updateSearch;
-    });
+    }, [search.q]);
 
     // Sync local input from URL when no debounce is pending (back/forward, "Clear filters")
     useEffect(() => {
@@ -51,9 +50,10 @@ export function ProductsToolbar() {
             clearTimeout(timeoutRef.current);
             timeoutRef.current = null;
         }
-        setLocalValue("");
-        updateSearchRef.current({ q: undefined }, options);
         inputRef.current?.focus();
+        if (localValue === "" && search.q === undefined) return;
+        setLocalValue("");
+        updateSearch({ q: undefined }, options);
     }
 
     return (
@@ -75,10 +75,7 @@ export function ProductsToolbar() {
                             timeoutRef.current = null;
                             const trimmed = value.trim() || undefined;
                             if (trimmed !== searchQRef.current) {
-                                updateSearchRef.current(
-                                    { q: trimmed },
-                                    { replace: true },
-                                );
+                                updateSearch({ q: trimmed }, { replace: true });
                             }
                         }, 300);
                     }}
@@ -107,7 +104,10 @@ export function ProductsToolbar() {
                         key={label}
                         type="button"
                         aria-pressed={search.stock === value}
-                        onClick={() => updateSearch({ stock: value })}
+                        onClick={() => {
+                            if (search.stock !== value)
+                                updateSearch({ stock: value });
+                        }}
                         className={cn(
                             "rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             search.stock === value

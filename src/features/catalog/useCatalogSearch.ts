@@ -14,20 +14,32 @@ export function useCatalogSearch() {
     const navigate = routeApi.useNavigate();
     const search = routeApi.useSearch();
 
-    function updateSearch(
-        patch: Partial<CatalogSearch>,
-        options?: { replace?: boolean },
-    ) {
-        const resetsPage = Object.keys(patch).some((k) => k !== "page");
-        navigate({
-            search: (prev) => ({
-                ...prev,
-                ...patch,
-                ...(resetsPage ? { page: 1 } : {}),
-            }),
-            replace: options?.replace,
-        });
-    }
+    const updateSearch = useCallback(
+        (patch: Partial<CatalogSearch>, options?: { replace?: boolean }) => {
+            navigate({
+                search: (prev) => {
+                    // Reset page only when a non-page key in the patch truly changes.
+                    // undefined and absent key are treated as equal.
+                    const changed = (k: keyof CatalogSearch): boolean =>
+                        k in patch && patch[k] !== prev[k];
+                    const resetsPage =
+                        changed("categoryId") ||
+                        changed("q") ||
+                        changed("stock") ||
+                        changed("sort") ||
+                        changed("order") ||
+                        changed("pageSize");
+                    return {
+                        ...prev,
+                        ...patch,
+                        ...(resetsPage ? { page: 1 } : {}),
+                    };
+                },
+                replace: options?.replace,
+            });
+        },
+        [navigate],
+    );
 
     return { search, updateSearch };
 }
