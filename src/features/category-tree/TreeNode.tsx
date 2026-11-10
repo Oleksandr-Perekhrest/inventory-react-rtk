@@ -9,11 +9,8 @@ import { selectChildrenIndex } from "./selectors";
 import { useTreeSearch } from "./TreeSearchContext";
 import { ROOT, splitByMatch, type ParentKey } from "./tree";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { useIsCategorySelected } from "../catalog/useCatalogSearch";
 import { useGetCategoriesQuery } from "../../api/endpoints/categories";
-import {
-    useSelectCategory,
-    useIsCategorySelected,
-} from "../catalog/useCatalogSearch";
 import {
     toggle,
     setFocused,
@@ -48,8 +45,7 @@ function TreeNodeInner({ id, level }: Props) {
     const isExpanded = useAppSelector((state) => selectIsExpanded(state, id));
     const isFocused = useAppSelector((state) => selectIsFocused(state, id));
     const isSelected = useIsCategorySelected(id);
-    const selectCategory = useSelectCategory();
-    const { query, visible } = useTreeSearch();
+    const { query, visible, onSelect } = useTreeSearch();
     const isSearchActive = query !== "";
 
     useEffect(() => {
@@ -77,6 +73,7 @@ function TreeNodeInner({ id, level }: Props) {
     return (
         <li
             ref={liRef}
+            data-category-id={id}
             role="treeitem"
             aria-level={level}
             aria-setsize={setSize}
@@ -94,7 +91,7 @@ function TreeNodeInner({ id, level }: Props) {
                 )}
                 style={{ paddingLeft: `${(level - 1) * 18 + 4}px` }}
                 onClick={() => {
-                    selectCategory(id);
+                    onSelect(id);
                     dispatch(setFocused(id));
                     liRef.current?.focus();
                 }}

@@ -47,13 +47,33 @@ export function CategoryTree() {
     const treeRef = useRef<HTMLUListElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    const handleSelect = useCallback(
+        (id: string) => {
+            if (isSearchActive && data) {
+                dispatch(
+                    expandMany([...collectAncestors(data, new Set([id]))]),
+                );
+                setQuery("");
+            }
+            selectCategory(id);
+        },
+        [isSearchActive, data, dispatch, selectCategory],
+    );
+
     const searchContext = useMemo(() => {
-        if (!trimmedQuery || !data) return INACTIVE_SEARCH;
+        if (!trimmedQuery || !data) {
+            return { ...INACTIVE_SEARCH, onSelect: handleSelect };
+        }
         const matches = findMatches(data, trimmedQuery);
         const ancestors = collectAncestors(data, matches);
         const visible = new Set([...matches, ...ancestors]);
-        return { query: trimmedQuery, matches, visible };
-    }, [data, trimmedQuery]);
+        return {
+            query: trimmedQuery,
+            matches,
+            visible,
+            onSelect: handleSelect,
+        };
+    }, [data, trimmedQuery, handleSelect]);
 
     const visibleOrder = useMemo(() => {
         if (!data) return [];
@@ -114,7 +134,7 @@ export function CategoryTree() {
             } else if (action.type === "toggle") {
                 dispatch(toggle(action.id));
             } else {
-                selectCategory(action.id);
+                handleSelect(action.id);
             }
         },
         [
@@ -123,7 +143,7 @@ export function CategoryTree() {
             isSearchActive,
             names,
             dispatch,
-            selectCategory,
+            handleSelect,
         ],
     );
 
@@ -155,8 +175,17 @@ export function CategoryTree() {
                         if (e.key === "Escape") setQuery("");
                         if (e.key === "ArrowDown") {
                             e.preventDefault();
+                            if (visibleOrder.length === 0) return;
+                            const targetId = isSearchActive
+                                ? (visibleOrder.find((n) =>
+                                      searchContext.matches.has(n.id),
+                                  )?.id ?? visibleOrder[0].id)
+                                : visibleOrder[0].id;
+                            dispatch(setFocused(targetId));
                             treeRef.current
-                                ?.querySelector<HTMLElement>('[tabindex="0"]')
+                                ?.querySelector<HTMLElement>(
+                                    `[data-category-id="${targetId}"]`,
+                                )
                                 ?.focus();
                         }
                     }}
