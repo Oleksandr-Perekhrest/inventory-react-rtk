@@ -1,6 +1,8 @@
 // local dependencies
 import { CategoryTree } from "./CategoryTree";
 import { ProductsTable } from "../products-table/ProductsTable";
+import { ProductsToolbar } from "../products-table/ProductsToolbar";
+import { ProductsPagination } from "../products-table/ProductsPagination";
 import { ProductsTableHeader } from "../products-table/ProductsTableHeader";
 
 export function CatalogPage() {
@@ -11,7 +13,9 @@ export function CatalogPage() {
                 <CategoryTree />
                 <div className="flex min-w-0 flex-1 flex-col gap-3">
                     <ProductsTableHeader />
+                    <ProductsToolbar />
                     <ProductsTable />
+                    <ProductsPagination />
                 </div>
             </div>
         </div>

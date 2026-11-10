@@ -86,130 +86,172 @@ export function ProductsTable() {
     }
 
     return (
-        <div
-            className={cn(
-                "overflow-hidden rounded-sm border bg-card",
-                isFetching && !!data && "opacity-60",
+        <>
+            {isError && data && (
+                <div
+                    role="alert"
+                    className="flex items-center justify-between gap-2 rounded-sm border bg-card p-3 text-sm text-destructive"
+                >
+                    <span>{getErrorMessage(error)}</span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void refetch()}
+                    >
+                        Retry
+                    </Button>
+                </div>
             )}
-            aria-busy={isFetching && !!data ? true : undefined}
-        >
-            <Table>
-                <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                        <TableRow
-                            key={headerGroup.id}
-                            className="border-0 hover:bg-transparent"
-                        >
-                            {headerGroup.headers.map((header) => {
-                                const isSorted = header.column.getIsSorted();
-                                const isRight = RIGHT_ALIGN.has(
-                                    header.column.id,
-                                );
-                                const canSort = header.column.getCanSort();
-                                return (
-                                    <TableHead
-                                        key={header.id}
-                                        className={cn(
-                                            HEADER_CLASS,
-                                            isRight && "text-right",
-                                        )}
-                                        aria-sort={
-                                            isSorted === "asc"
-                                                ? "ascending"
-                                                : isSorted === "desc"
-                                                  ? "descending"
-                                                  : undefined
-                                        }
-                                    >
-                                        {header.isPlaceholder ? null : canSort ? (
-                                            <button
-                                                type="button"
-                                                className={cn(
-                                                    "flex w-full items-center gap-1 uppercase tracking-wider",
-                                                    isRight && "justify-end",
-                                                )}
-                                                onClick={(e) =>
-                                                    header.column.getToggleSortingHandler()?.(
-                                                        e,
-                                                    )
-                                                }
-                                            >
+            <div
+                className={cn(
+                    "overflow-hidden rounded-sm border bg-card",
+                    isFetching && !!data && "opacity-60",
+                )}
+                aria-busy={isFetching && !!data ? true : undefined}
+            >
+                <Table>
+                    <TableHeader>
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <TableRow
+                                key={headerGroup.id}
+                                className="border-0 hover:bg-transparent"
+                            >
+                                {headerGroup.headers.map((header) => {
+                                    const isSorted =
+                                        header.column.getIsSorted();
+                                    const isRight = RIGHT_ALIGN.has(
+                                        header.column.id,
+                                    );
+                                    const canSort = header.column.getCanSort();
+                                    return (
+                                        <TableHead
+                                            key={header.id}
+                                            className={cn(
+                                                HEADER_CLASS,
+                                                isRight && "text-right",
+                                            )}
+                                            aria-sort={
+                                                isSorted === "asc"
+                                                    ? "ascending"
+                                                    : isSorted === "desc"
+                                                      ? "descending"
+                                                      : undefined
+                                            }
+                                        >
+                                            {header.isPlaceholder ? null : canSort ? (
+                                                <button
+                                                    type="button"
+                                                    className={cn(
+                                                        "flex w-full items-center gap-1 uppercase tracking-wider",
+                                                        isRight &&
+                                                            "justify-end",
+                                                    )}
+                                                    onClick={(e) =>
+                                                        header.column.getToggleSortingHandler()?.(
+                                                            e,
+                                                        )
+                                                    }
+                                                >
+                                                    <table.FlexRender
+                                                        header={header}
+                                                    />
+                                                    {isSorted === "asc" ? (
+                                                        <ArrowUp
+                                                            aria-hidden="true"
+                                                            className="size-3 shrink-0"
+                                                        />
+                                                    ) : isSorted === "desc" ? (
+                                                        <ArrowDown
+                                                            aria-hidden="true"
+                                                            className="size-3 shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <ArrowUpDown
+                                                            aria-hidden="true"
+                                                            className="size-3 shrink-0 opacity-50"
+                                                        />
+                                                    )}
+                                                </button>
+                                            ) : (
                                                 <table.FlexRender
                                                     header={header}
                                                 />
-                                                {isSorted === "asc" ? (
-                                                    <ArrowUp
-                                                        aria-hidden="true"
-                                                        className="size-3 shrink-0"
-                                                    />
-                                                ) : isSorted === "desc" ? (
-                                                    <ArrowDown
-                                                        aria-hidden="true"
-                                                        className="size-3 shrink-0"
-                                                    />
-                                                ) : (
-                                                    <ArrowUpDown
-                                                        aria-hidden="true"
-                                                        className="size-3 shrink-0 opacity-50"
-                                                    />
-                                                )}
-                                            </button>
-                                        ) : (
-                                            <table.FlexRender header={header} />
-                                        )}
-                                    </TableHead>
-                                );
-                            })}
-                        </TableRow>
-                    ))}
-                </TableHeader>
-                <TableBody>
-                    {isLoading ? (
-                        Array.from({ length: 8 }).map((_, i) => (
-                            <TableRow key={i}>
-                                {table.getAllLeafColumns().map((col) => (
-                                    <TableCell
-                                        key={col.id}
-                                        className={cn(
-                                            RIGHT_ALIGN.has(col.id) &&
-                                                "text-right",
-                                        )}
-                                    >
-                                        <Skeleton className="h-4 w-full rounded-sm" />
-                                    </TableCell>
-                                ))}
+                                            )}
+                                        </TableHead>
+                                    );
+                                })}
                             </TableRow>
-                        ))
-                    ) : table.getRowModel().rows.length === 0 ? (
-                        <TableRow>
-                            <TableCell
-                                colSpan={columns.length}
-                                className="h-24 text-center text-muted-foreground"
-                            >
-                                {search.categoryId
-                                    ? "No products in this category"
-                                    : "No products"}
-                            </TableCell>
-                        </TableRow>
-                    ) : (
-                        table.getRowModel().rows.map((row) => (
-                            <TableRow key={row.id}>
-                                {row.getAllCells().map((cell) => (
-                                    <TableCell
-                                        key={cell.id}
-                                        className={cn(
-                                            RIGHT_ALIGN.has(cell.column.id) &&
-                                                "text-right",
-                                        )}
-                                    >
-                                        <table.FlexRender cell={cell} />
-                                    </TableCell>
-                                ))}
+                        ))}
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            Array.from({ length: 8 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    {table.getAllLeafColumns().map((col) => (
+                                        <TableCell
+                                            key={col.id}
+                                            className={cn(
+                                                RIGHT_ALIGN.has(col.id) &&
+                                                    "text-right",
+                                            )}
+                                        >
+                                            <Skeleton className="h-4 w-full rounded-sm" />
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
+                        ) : table.getRowModel().rows.length === 0 ? (
+                            <TableRow>
+                                <TableCell
+                                    colSpan={columns.length}
+                                    className="h-24 text-center text-muted-foreground"
+                                >
+                                    {search.q || search.stock ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <span>
+                                                No products match the filters
+                                            </span>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    updateSearch({
+                                                        q: undefined,
+                                                        stock: undefined,
+                                                    })
+                                                }
+                                            >
+                                                Clear filters
+                                            </Button>
+                                        </div>
+                                    ) : search.categoryId ? (
+                                        "No products in this category"
+                                    ) : (
+                                        "No products"
+                                    )}
+                                </TableCell>
                             </TableRow>
-                        ))
-                    )}
-                </TableBody>
-            </Table>
-        </div>
+                        ) : (
+                            table.getRowModel().rows.map((row) => (
+                                <TableRow key={row.id}>
+                                    {row.getAllCells().map((cell) => (
+                                        <TableCell
+                                            key={cell.id}
+                                            className={cn(
+                                                RIGHT_ALIGN.has(
+                                                    cell.column.id,
+                                                ) && "text-right",
+                                            )}
+                                        >
+                                            <table.FlexRender cell={cell} />
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+        </>
     );
 }
