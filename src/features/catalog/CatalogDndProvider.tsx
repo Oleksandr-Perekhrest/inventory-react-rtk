@@ -1,4 +1,5 @@
 // outsource dependencies
+import { toast } from "sonner";
 import { useCallback, type ReactNode } from "react";
 import {
     Accessibility,
@@ -17,6 +18,7 @@ import {
 import type { RootState } from "@/store/store";
 import { categoriesApi } from "@/api/endpoints/categories";
 import { useAppStore, useAppDispatch } from "@/store/hooks";
+import { isApiErrorData, getErrorMessage } from "@/api/errors";
 import {
     expandMany,
     setDropIndicator,
@@ -25,6 +27,7 @@ import {
     getDropZone,
     isCategoryDndData,
     resolveCategoryDrop,
+    describeCategoryMove,
 } from "@/features/category-tree/dnd";
 
 // The Accessibility plugin adds role="button", tabindex="0" and keyboard
@@ -103,16 +106,38 @@ export function CatalogDndProvider({ children }: { children: ReactNode }) {
     );
 
     const handleDragEnd = useCallback(
-        (event: DragEndEvent) => {
+        async (event: DragEndEvent) => {
             dispatch(setDropIndicator(null));
             if (event.canceled || !event.operation.target) return;
             const result = computeDrop(event.operation, store.getState());
             if (!result) return;
-            void dispatch(
-                categoriesApi.endpoints.moveCategory.initiate(result.resolved),
+
+            const categories = categoriesApi.endpoints.getCategories.select()(
+                store.getState(),
+            ).data;
+            const { name, destination } = describeCategoryMove(
+                categories,
+                result.resolved,
             );
+
             if (result.resolved.parentId === result.targetId) {
                 dispatch(expandMany([result.targetId]));
+            }
+
+            try {
+                await dispatch(
+                    categoriesApi.endpoints.moveCategory.initiate(
+                        result.resolved,
+                    ),
+                ).unwrap();
+                toast.success(`Moved "${name}" to ${destination}`, {
+                    duration: 3000,
+                });
+            } catch (error) {
+                toast.error(`Couldn't move "${name}"`, {
+                    description: `Changes were reverted. ${getErrorMessage(isApiErrorData(error) ? error : undefined)}`,
+                    duration: 6000,
+                });
             }
         },
         [dispatch, store],

@@ -41,6 +41,17 @@ export function getDropZone(
     return "inside";
 }
 
+export function describeCategoryMove(
+    data: EntityState<CategoryWithCounts, Category["id"]> | undefined,
+    input: MoveCategoryInput,
+): { name: string; destination: string } {
+    const name = data?.entities[input.id]?.name ?? input.id;
+    const destination = input.parentId
+        ? `"${data?.entities[input.parentId]?.name ?? input.parentId}"`
+        : "top level";
+    return { name, destination };
+}
+
 export function resolveCategoryDrop(
     data: EntityState<CategoryWithCounts, Category["id"]>,
     drop: {
