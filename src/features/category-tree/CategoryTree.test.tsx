@@ -198,9 +198,12 @@ describe("Search filter", () => {
         expect(screen.queryByText("Phones")).not.toBeInTheDocument();
         expect(screen.getByText("Electronics")).toBeInTheDocument();
 
-        expect(screen.getByRole("status")).toHaveTextContent(
-            "1 category found",
-        );
+        // DragDropProvider also renders a role="status" announcement element;
+        // find the CategoryTree live region by its content.
+        const treeStatus = screen
+            .getAllByRole("status")
+            .find((el) => el.textContent?.includes("category found"));
+        expect(treeStatus).toHaveTextContent("1 category found");
 
         // "Comp" (the matched portion) is wrapped in a <mark> element
         const mark = document.querySelector("mark");

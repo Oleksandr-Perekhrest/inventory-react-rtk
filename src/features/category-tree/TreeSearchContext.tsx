@@ -28,3 +28,9 @@ export const TreeSelectContext = createContext<(id: string) => void>(() => {});
 export function useTreeSelect(): (id: string) => void {
     return useContext(TreeSelectContext);
 }
+
+export const TreeDndEnabledContext = createContext<boolean>(false);
+
+export function useTreeDndEnabled(): boolean {
+    return useContext(TreeDndEnabledContext);
+}

@@ -9,6 +9,25 @@ import { moveCategory, type MoveCategoryInput } from "@/domain/category-move";
 
 export type DropZone = "before" | "inside" | "after";
 
+export type CategoryDndData = { categoryId: Category["id"] };
+
+export function toCategoryDraggableId(categoryId: Category["id"]): string {
+    return `category:${categoryId}`;
+}
+
+export function toCategoryDroppableId(categoryId: Category["id"]): string {
+    return `category-drop:${categoryId}`;
+}
+
+export function isCategoryDndData(data: unknown): data is CategoryDndData {
+    return (
+        typeof data === "object" &&
+        data !== null &&
+        "categoryId" in data &&
+        typeof (data as Record<string, unknown>).categoryId === "string"
+    );
+}
+
 export function getDropZone(
     pointerY: number,
     rect: { top: number; height: number },
