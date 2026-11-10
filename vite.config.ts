@@ -37,6 +37,11 @@ export default defineConfig({
                             priority: 10,
                         },
                         {
+                            name: "vendor-table",
+                            test: /[\\/]node_modules[\\/]@tanstack[\\/](react-table|table-core)[\\/]/,
+                            priority: 10,
+                        },
+                        {
                             name: "vendor-router",
                             test: /[\\/]node_modules[\\/]@tanstack[\\/]/,
                             priority: 9,
