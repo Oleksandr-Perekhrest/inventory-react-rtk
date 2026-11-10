@@ -2,6 +2,9 @@
 import { Toaster as Sonner } from "sonner";
 import type { CSSProperties, ComponentProps } from "react";
 
+// local dependencies
+import { useMediaQuery } from "@/hooks/use-media-query";
+
 interface SonnerCSSVars extends CSSProperties {
     "--normal-bg"?: string;
     "--normal-text"?: string;
@@ -14,7 +17,10 @@ const toasterStyle: SonnerCSSVars = {
     "--normal-border": "var(--border)",
 };
 
+const MOBILE_NAV_OFFSET = "calc(4rem + env(safe-area-inset-bottom) + 1rem)";
+
 export function Toaster(props: ComponentProps<typeof Sonner>) {
+    const isLg = useMediaQuery("(min-width: 1024px)");
     return (
         <Sonner
             theme="light"
@@ -26,9 +32,8 @@ export function Toaster(props: ComponentProps<typeof Sonner>) {
                     toast: "rounded-sm font-sans",
                 },
             }}
-            mobileOffset={{
-                bottom: "calc(4rem + env(safe-area-inset-bottom))",
-            }}
+            offset={isLg ? undefined : { bottom: MOBILE_NAV_OFFSET }}
+            mobileOffset={{ bottom: MOBILE_NAV_OFFSET }}
             {...props}
         />
     );

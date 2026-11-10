@@ -53,7 +53,7 @@ export default defineConfig({
                         },
                         {
                             name: "vendor-ui",
-                            test: /[\\/]node_modules[\\/](radix-ui|@radix-ui|lucide-react|class-variance-authority)[\\/]/,
+                            test: /[\\/]node_modules[\\/](radix-ui|@radix-ui|lucide-react|sonner|class-variance-authority)[\\/]/,
                             priority: 7,
                         },
                         {
