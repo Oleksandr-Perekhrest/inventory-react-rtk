@@ -37,7 +37,12 @@ export function CategoryTree() {
     const focusedId = useAppSelector(selectFocusedId);
     const selectCategory = useSelectCategory();
     const selectedId = useSelectedCategoryId();
-    const selectedEntityExists = !!selectedId && !!data?.entities[selectedId];
+    // Ancestors as a primitive key: effect re-runs only when the path changes,
+    // not on every refetch. null = selected id is not in the data (yet).
+    const selectedAncestorsKey = useMemo(() => {
+        if (!data || !selectedId || !data.entities[selectedId]) return null;
+        return [...collectAncestors(data, new Set([selectedId]))].join(",");
+    }, [data, selectedId]);
     const expanded = useAppSelector((state) => state.categoryTree.expanded);
     const treeRef = useRef<HTMLUListElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -84,12 +89,14 @@ export function CategoryTree() {
     }, [visibleOrder, focusedId, dispatch]);
 
     useEffect(() => {
-        if (isSearchActive || !selectedId || !selectedEntityExists) return;
-        const ancestors = collectAncestors(data!, new Set([selectedId]));
-        dispatch(expandMany([...ancestors]));
+        if (isSearchActive || !selectedId || selectedAncestorsKey === null) {
+            return;
+        }
+        if (selectedAncestorsKey) {
+            dispatch(expandMany(selectedAncestorsKey.split(",")));
+        }
         dispatch(setFocused(selectedId));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedId, selectedEntityExists, isSearchActive, dispatch]);
+    }, [selectedId, selectedAncestorsKey, isSearchActive, dispatch]);
 
     const handleTreeKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
