@@ -4,7 +4,7 @@ import type { SerializedError } from "@reduxjs/toolkit";
 
 // local dependencies
 import type { ApiErrorData } from "./types";
-import { isApiErrorData, getErrorMessage } from "./errors";
+import { isApiErrorData, getErrorStatus, getErrorMessage } from "./errors";
 
 describe("getErrorMessage", () => {
     it("returns error.message for ApiErrorData", () => {
@@ -28,6 +28,45 @@ describe("getErrorMessage", () => {
 
     it("returns 'Unknown error' for undefined", () => {
         expect(getErrorMessage(undefined)).toBe("Unknown error");
+    });
+});
+
+describe("getErrorStatus", () => {
+    it("returns the numeric status for a 404 ApiErrorData", () => {
+        const error: ApiErrorData = {
+            status: 404,
+            code: "NOT_FOUND",
+            message: "Not found",
+        };
+        expect(getErrorStatus(error)).toBe(404);
+    });
+
+    it("returns the numeric status for a non-404 ApiErrorData", () => {
+        const error: ApiErrorData = {
+            status: 500,
+            code: "INTERNAL_ERROR",
+            message: "Server error",
+        };
+        expect(getErrorStatus(error)).toBe(500);
+    });
+
+    it("returns undefined for NETWORK_ERROR ApiErrorData (non-numeric status)", () => {
+        const error: ApiErrorData = {
+            status: "NETWORK_ERROR",
+            code: "NETWORK_ERROR",
+            message: "Network error",
+        };
+        expect(getErrorStatus(error)).toBeUndefined();
+    });
+
+    it("returns undefined for a SerializedError (no status field)", () => {
+        expect(
+            getErrorStatus({ message: "Something went wrong" }),
+        ).toBeUndefined();
+    });
+
+    it("returns undefined for undefined", () => {
+        expect(getErrorStatus(undefined)).toBeUndefined();
     });
 });
 

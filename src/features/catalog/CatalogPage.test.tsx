@@ -241,28 +241,47 @@ describe("Tree ↔ URL ↔ table integration (T2b)", () => {
         expect(deepItem).toHaveAttribute("aria-selected", "true");
     });
 
-    // products controller throws 404 for unknown categoryId — table shows error alert, not empty-category message
-    it.fails(
-        "4 — unknown categoryId: h2 'Unknown category', no aria-selected, table shows empty-category message",
-        async () => {
-            await renderWithRouter("/catalog?categoryId=nonexistent-id-xyz");
-            await waitForTreeLoaded();
+    it("4 — unknown categoryId: h2 'Unknown category', no aria-selected, explicit not-found state", async () => {
+        const user = userEvent.setup();
+        const total = db.products.length;
+        const { router } = await renderWithRouter(
+            "/catalog?categoryId=nonexistent-id-xyz",
+        );
+        await waitForTreeLoaded();
 
-            await screen.findByRole("heading", {
-                level: 2,
-                name: "Unknown category",
-            });
+        // h2 shows "Unknown category" (ProductsTableHeader fallback)
+        await screen.findByRole("heading", {
+            level: 2,
+            name: "Unknown category",
+        });
 
-            const treeEl = screen.getByRole("tree");
-            const allTreeitems = within(treeEl).getAllByRole("treeitem");
-            for (const item of allTreeitems) {
-                expect(item).not.toHaveAttribute("aria-selected");
-            }
+        // No treeitem is selected (the id is not in the tree)
+        const treeEl = screen.getByRole("tree");
+        for (const item of within(treeEl).getAllByRole("treeitem")) {
+            expect(item).not.toHaveAttribute("aria-selected");
+        }
 
-            // Desired: empty-category message in the table body. Actual: 404 error alert.
-            await screen.findByText("No products in this category");
-        },
-    );
+        // Not-found state: explicit message, no generic error alert, no Retry
+        await screen.findByText("This category doesn't exist");
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: /retry/i }),
+        ).not.toBeInTheDocument();
+
+        // "Show all products" in the not-found panel (distinct from the header × button)
+        const notFoundMsg = screen.getByText("This category doesn't exist");
+        const notFoundPanel = notFoundMsg.parentElement;
+        if (!notFoundPanel) throw new Error("not-found panel not found");
+        await user.click(
+            within(notFoundPanel).getByRole("button", {
+                name: "Show all products",
+            }),
+        );
+
+        await screen.findByRole("heading", { level: 2, name: "All products" });
+        expect(router.state.location.searchStr).not.toContain("categoryId");
+        await screen.findByText(countLabel(total));
+    });
 
     it("5 — keyboard: ArrowDown moves focus, Enter selects, Space selects", async () => {
         const user = userEvent.setup();

@@ -7,12 +7,13 @@ import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 // local dependencies
 import type { Product } from "@/domain";
 import { columns, features } from "./columns";
-import { getErrorMessage } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getErrorStatus, getErrorMessage } from "@/api/errors";
 import type { CatalogSearch } from "@/features/catalog/catalogSearch";
 import {
     useCatalogSearch,
+    useSelectCategory,
     useCatalogProducts,
 } from "@/features/catalog/useCatalogSearch";
 import {
@@ -37,6 +38,7 @@ export function ProductsTable() {
     const { search, updateSearch } = useCatalogSearch();
     const { data, isLoading, isFetching, isError, error, refetch } =
         useCatalogProducts();
+    const selectCategory = useSelectCategory();
 
     const sorting = useMemo(
         () => [{ id: search.sort, desc: search.order === "desc" }],
@@ -67,6 +69,20 @@ export function ProductsTable() {
     });
 
     if (isError && !data) {
+        if (getErrorStatus(error) === 404 && search.categoryId !== undefined) {
+            return (
+                <div className="flex flex-col items-center justify-center gap-2 rounded-sm border bg-card p-8 text-sm text-muted-foreground">
+                    <span>{"This category doesn't exist"}</span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => selectCategory(undefined)}
+                    >
+                        Show all products
+                    </Button>
+                </div>
+            );
+        }
         return (
             <div
                 role="alert"

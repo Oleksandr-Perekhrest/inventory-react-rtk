@@ -21,3 +21,12 @@ export function getErrorMessage(
     if (isApiErrorData(error)) return error.message;
     return error.message ?? "Unknown error";
 }
+
+export function getErrorStatus(
+    error: ApiErrorData | SerializedError | undefined,
+): number | undefined {
+    if (isApiErrorData(error) && typeof error.status === "number") {
+        return error.status;
+    }
+    return undefined;
+}
