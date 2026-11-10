@@ -12,16 +12,26 @@ if (typeof window !== "undefined") {
 
     Object.defineProperty(window, "matchMedia", {
         writable: true,
-        value: (query: string) => ({
-            matches: false,
-            media: query,
-            onchange: null,
-            addListener: () => {},
-            removeListener: () => {},
-            addEventListener: () => {},
-            removeEventListener: () => {},
-            dispatchEvent: () => false,
-        }),
+        // Evaluate min/max-width against window.innerWidth so tests render the desktop layout (jsdom default innerWidth = 1024).
+        value: (query: string) => {
+            const minMatch = /\(min-width:\s*(\d+)px\)/.exec(query);
+            const maxMatch = /\(max-width:\s*(\d+)px\)/.exec(query);
+            const matches = minMatch
+                ? window.innerWidth >= Number(minMatch[1])
+                : maxMatch
+                  ? window.innerWidth <= Number(maxMatch[1])
+                  : false;
+            return {
+                matches,
+                media: query,
+                onchange: null,
+                addListener: () => {},
+                removeListener: () => {},
+                addEventListener: () => {},
+                removeEventListener: () => {},
+                dispatchEvent: () => false,
+            };
+        },
     });
 }
 

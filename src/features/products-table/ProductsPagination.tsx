@@ -43,9 +43,9 @@ export function ProductsPagination() {
     return (
         <nav
             aria-label="Pagination"
-            className="flex items-center justify-between gap-4 text-sm"
+            className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm"
         >
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">
                 <label htmlFor="rows-per-page">Rows per page</label>
                 <select
                     id="rows-per-page"
@@ -65,7 +65,7 @@ export function ProductsPagination() {
 
             <div className="flex items-center gap-3">
                 {total > 0 && (
-                    <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                    <span className="whitespace-nowrap font-mono text-sm tabular-nums text-muted-foreground">
                         {`${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}`}
                     </span>
                 )}

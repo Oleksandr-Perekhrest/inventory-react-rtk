@@ -31,7 +31,11 @@ import {
 
 const labelId = "categories-tree-label";
 
-export function CategoryTree() {
+export function CategoryTree({
+    onCategorySelected,
+}: {
+    onCategorySelected?: (id: string) => void;
+}) {
     const { data, isLoading, isError, error, refetch } =
         useGetCategoriesQuery();
     const [query, setQuery] = useState("");
@@ -67,8 +71,9 @@ export function CategoryTree() {
                 setQuery("");
             }
             selectCategory(id);
+            onCategorySelected?.(id);
         },
-        [isSearchActive, dispatch, selectCategory],
+        [isSearchActive, dispatch, selectCategory, onCategorySelected],
     );
 
     const searchContext = useMemo(() => {
@@ -159,7 +164,7 @@ export function CategoryTree() {
         : rootChildIds;
 
     return (
-        <div className="flex w-full shrink-0 flex-col gap-2 self-start rounded-sm border bg-card p-3 md:w-64">
+        <div className="flex w-full shrink-0 flex-col gap-2 self-start rounded-sm border bg-card p-3">
             <span
                 id={labelId}
                 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"

@@ -57,7 +57,7 @@ export function ProductsToolbar() {
     }
 
     return (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative min-w-0 flex-1">
                 <Input
                     ref={inputRef}
