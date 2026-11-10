@@ -5,15 +5,19 @@ import { type EntityState, createEntityAdapter } from "@reduxjs/toolkit";
 import { baseApi } from "../baseApi";
 import type { MoveCategoryBody } from "../queries";
 import type { CategoryWithCounts } from "../types";
-import { moveCategory, type Category } from "../../domain";
 import { computeTotalProductCounts } from "../categoryCounts";
+import {
+    moveCategory,
+    type Category,
+    type MoveCategoryInput,
+} from "../../domain";
 
 export const categoriesAdapter = createEntityAdapter<
     CategoryWithCounts,
     Category["id"]
 >({ selectId: (c) => c.id });
 
-const getExtendedApi = baseApi.injectEndpoints({
+const categoriesQueryApi = baseApi.injectEndpoints({
     endpoints: (build) => ({
         getCategories: build.query<
             EntityState<CategoryWithCounts, Category["id"]>,
@@ -36,7 +40,42 @@ const getExtendedApi = baseApi.injectEndpoints({
     }),
 });
 
-const extendedApi = getExtendedApi.injectEndpoints({
+function applyCategoryMoveToCache(
+    draft: EntityState<CategoryWithCounts, Category["id"]>,
+    input: MoveCategoryInput,
+): void {
+    const definedEntities = (): CategoryWithCounts[] =>
+        Object.values(draft.entities).filter(
+            (e): e is CategoryWithCounts => e !== undefined,
+        );
+
+    const result = moveCategory(definedEntities(), input);
+    if (!result.ok) return;
+
+    categoriesAdapter.updateMany(
+        draft,
+        result.changes.map((c) => ({
+            id: c.id,
+            changes: { parentId: c.parentId, position: c.position },
+        })),
+    );
+
+    const updatedEntities = definedEntities();
+    const totals = computeTotalProductCounts(updatedEntities);
+    const totalUpdates = updatedEntities
+        .filter((e) => totals.get(e.id) !== e.totalProductCount)
+        .map((e) => ({
+            id: e.id,
+            changes: {
+                totalProductCount: totals.get(e.id) ?? e.totalProductCount,
+            },
+        }));
+    if (totalUpdates.length > 0) {
+        categoriesAdapter.updateMany(draft, totalUpdates);
+    }
+}
+
+const extendedApi = categoriesQueryApi.injectEndpoints({
     endpoints: (build) => ({
         moveCategory: build.mutation<
             void,
@@ -52,65 +91,15 @@ const extendedApi = getExtendedApi.injectEndpoints({
                 { dispatch, queryFulfilled },
             ) => {
                 const patch = dispatch(
-                    getExtendedApi.util.updateQueryData(
+                    categoriesQueryApi.util.updateQueryData(
                         "getCategories",
                         undefined,
-                        (draft) => {
-                            const entities = Object.values(
-                                draft.entities,
-                            ).filter(
-                                (e): e is CategoryWithCounts => e !== undefined,
-                            );
-                            const result = moveCategory(entities, {
+                        (draft) =>
+                            applyCategoryMoveToCache(draft, {
                                 id,
                                 parentId,
                                 index,
-                            });
-                            if (!result.ok) return;
-                            categoriesAdapter.updateMany(
-                                draft,
-                                result.changes.map(
-                                    ({
-                                        id: changeId,
-                                        parentId: changeParentId,
-                                        position,
-                                    }) => ({
-                                        id: changeId,
-                                        changes: {
-                                            parentId: changeParentId,
-                                            position,
-                                        },
-                                    }),
-                                ),
-                            );
-                            const updatedEntities = Object.values(
-                                draft.entities,
-                            ).filter(
-                                (e): e is CategoryWithCounts => e !== undefined,
-                            );
-                            const totals =
-                                computeTotalProductCounts(updatedEntities);
-                            const totalUpdates = updatedEntities
-                                .filter(
-                                    (e) =>
-                                        totals.get(e.id) !==
-                                        e.totalProductCount,
-                                )
-                                .map((e) => ({
-                                    id: e.id,
-                                    changes: {
-                                        totalProductCount:
-                                            totals.get(e.id) ??
-                                            e.totalProductCount,
-                                    },
-                                }));
-                            if (totalUpdates.length > 0) {
-                                categoriesAdapter.updateMany(
-                                    draft,
-                                    totalUpdates,
-                                );
-                            }
-                        },
+                            }),
                     ),
                 );
                 try {
