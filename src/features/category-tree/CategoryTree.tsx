@@ -12,7 +12,6 @@ import { getErrorMessage } from "../../api/errors";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useGetCategoriesQuery } from "../../api/endpoints/categories";
-import { INACTIVE_SEARCH, TreeSearchContext } from "./TreeSearchContext";
 import { ROOT, findMatches, getVisibleOrder, collectAncestors } from "./tree";
 import {
     useSelectCategory,
@@ -24,6 +23,11 @@ import {
     setFocused,
     selectFocusedId,
 } from "./categoryTreeSlice";
+import {
+    INACTIVE_SEARCH,
+    TreeSearchContext,
+    TreeSelectContext,
+} from "./TreeSearchContext";
 
 const labelId = "categories-tree-label";
 
@@ -46,34 +50,34 @@ export function CategoryTree() {
     const expanded = useAppSelector((state) => state.categoryTree.expanded);
     const treeRef = useRef<HTMLUListElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const dataRef = useRef(data);
+    useEffect(() => {
+        dataRef.current = data;
+    }, [data]);
 
     const handleSelect = useCallback(
         (id: string) => {
-            if (isSearchActive && data) {
-                dispatch(
-                    expandMany([...collectAncestors(data, new Set([id]))]),
-                );
+            if (isSearchActive) {
+                const d = dataRef.current;
+                if (d) {
+                    dispatch(
+                        expandMany([...collectAncestors(d, new Set([id]))]),
+                    );
+                }
                 setQuery("");
             }
             selectCategory(id);
         },
-        [isSearchActive, data, dispatch, selectCategory],
+        [isSearchActive, dispatch, selectCategory],
     );
 
     const searchContext = useMemo(() => {
-        if (!trimmedQuery || !data) {
-            return { ...INACTIVE_SEARCH, onSelect: handleSelect };
-        }
+        if (!trimmedQuery || !data) return INACTIVE_SEARCH;
         const matches = findMatches(data, trimmedQuery);
         const ancestors = collectAncestors(data, matches);
         const visible = new Set([...matches, ...ancestors]);
-        return {
-            query: trimmedQuery,
-            matches,
-            visible,
-            onSelect: handleSelect,
-        };
-    }, [data, trimmedQuery, handleSelect]);
+        return { query: trimmedQuery, matches, visible };
+    }, [data, trimmedQuery]);
 
     const visibleOrder = useMemo(() => {
         if (!data) return [];
@@ -229,25 +233,27 @@ export function CategoryTree() {
                 </div>
             )}
             {data && (
-                <TreeSearchContext.Provider value={searchContext}>
-                    {isSearchActive && searchContext.matches.size === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            {`No categories match "${trimmedQuery}"`}
-                        </p>
-                    ) : (
-                        <ul
-                            ref={treeRef}
-                            role="tree"
-                            aria-labelledby={labelId}
-                            className="flex flex-col gap-0.5"
-                            onKeyDown={handleTreeKeyDown}
-                        >
-                            {visibleRootIds.map((id) => (
-                                <TreeNode key={id} id={id} level={1} />
-                            ))}
-                        </ul>
-                    )}
-                </TreeSearchContext.Provider>
+                <TreeSelectContext.Provider value={handleSelect}>
+                    <TreeSearchContext.Provider value={searchContext}>
+                        {isSearchActive && searchContext.matches.size === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                {`No categories match "${trimmedQuery}"`}
+                            </p>
+                        ) : (
+                            <ul
+                                ref={treeRef}
+                                role="tree"
+                                aria-labelledby={labelId}
+                                className="flex flex-col gap-0.5"
+                                onKeyDown={handleTreeKeyDown}
+                            >
+                                {visibleRootIds.map((id) => (
+                                    <TreeNode key={id} id={id} level={1} />
+                                ))}
+                            </ul>
+                        )}
+                    </TreeSearchContext.Provider>
+                </TreeSelectContext.Provider>
             )}
         </div>
     );

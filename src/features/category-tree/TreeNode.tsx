@@ -6,8 +6,8 @@ import { memo, useRef, useEffect } from "react";
 // local dependencies
 import type { Category } from "../../domain";
 import { selectChildrenIndex } from "./selectors";
-import { useTreeSearch } from "./TreeSearchContext";
 import { ROOT, splitByMatch, type ParentKey } from "./tree";
+import { useTreeSearch, useTreeSelect } from "./TreeSearchContext";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useIsCategorySelected } from "../catalog/useCatalogSearch";
 import { useGetCategoriesQuery } from "../../api/endpoints/categories";
@@ -45,7 +45,8 @@ function TreeNodeInner({ id, level }: Props) {
     const isExpanded = useAppSelector((state) => selectIsExpanded(state, id));
     const isFocused = useAppSelector((state) => selectIsFocused(state, id));
     const isSelected = useIsCategorySelected(id);
-    const { query, visible, onSelect } = useTreeSearch();
+    const { query, visible } = useTreeSearch();
+    const onSelect = useTreeSelect();
     const isSearchActive = query !== "";
 
     useEffect(() => {

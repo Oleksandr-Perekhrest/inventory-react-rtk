@@ -8,14 +8,12 @@ export type TreeSearchState = {
     query: string;
     matches: Set<Category["id"]>;
     visible: Set<Category["id"]>;
-    onSelect: (id: Category["id"]) => void;
 };
 
 export const INACTIVE_SEARCH: TreeSearchState = {
     query: "",
     matches: new Set(),
     visible: new Set(),
-    onSelect: () => {},
 };
 
 export const TreeSearchContext =
@@ -23,4 +21,10 @@ export const TreeSearchContext =
 
 export function useTreeSearch(): TreeSearchState {
     return useContext(TreeSearchContext);
+}
+
+export const TreeSelectContext = createContext<(id: string) => void>(() => {});
+
+export function useTreeSelect(): (id: string) => void {
+    return useContext(TreeSelectContext);
 }
