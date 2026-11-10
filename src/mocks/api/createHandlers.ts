@@ -9,11 +9,15 @@ import { demoReset } from "./controllers/demo";
 import type { NetworkConfig } from "./network";
 import { listMovements } from "./controllers/movements";
 import { listSuppliers } from "./controllers/suppliers";
-import { getProduct, listProducts } from "./controllers/products";
 import {
     listCategories,
     moveCategoryController,
 } from "./controllers/categories";
+import {
+    getProduct,
+    listProducts,
+    updateProductController,
+} from "./controllers/products";
 import {
     movementsQuerySchema,
     suppliersQuerySchema,
@@ -21,6 +25,7 @@ import {
     getProductQuerySchema,
     moveCategoryBodySchema,
     listProductsQuerySchema,
+    updateProductBodySchema,
 } from "../../api/queries";
 
 export function createHandlers({
@@ -55,6 +60,12 @@ export function createHandlers({
         http.get(
             "/api/products/:id",
             route(getProduct, { querySchema: getProductQuerySchema }),
+        ),
+        http.patch(
+            "/api/products/:id",
+            route(updateProductController, {
+                bodySchema: updateProductBodySchema,
+            }),
         ),
         http.get(
             "/api/movements",

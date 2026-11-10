@@ -39,7 +39,12 @@ export const moveCategoryBodySchema = z.strictObject({
     index: z.int(),
 });
 
+export const updateProductBodySchema = z.strictObject({
+    categoryId: z.string().min(1),
+});
+
 export type MoveCategoryBody = z.infer<typeof moveCategoryBodySchema>;
+export type UpdateProductBody = z.infer<typeof updateProductBodySchema>;
 export type ListProductsQuery = z.output<typeof listProductsQuerySchema>;
 export type MovementsQuery = z.output<typeof movementsQuerySchema>;
 
