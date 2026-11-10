@@ -1,5 +1,6 @@
 // outsource dependencies
-import { useState, useCallback } from "react";
+import { X, ChevronDown } from "lucide-react";
+import { useRef, useState, useCallback } from "react";
 
 // local dependencies
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { ProductsPagination } from "@/features/products-table/ProductsPagination
 import { ProductsTableHeader } from "@/features/products-table/ProductsTableHeader";
 import {
     Sheet,
+    SheetClose,
     SheetTitle,
     SheetContent,
     SheetTrigger,
@@ -21,6 +23,7 @@ import {
 export function CatalogPage() {
     const isDesktop = useMediaQuery("(min-width: 1024px)");
     const [sheetOpen, setSheetOpen] = useState(false);
+    const sheetBodyRef = useRef<HTMLDivElement>(null);
 
     const categoryId = useSelectedCategoryId();
     const { name: categoryName } = useGetCategoriesQuery(undefined, {
@@ -40,6 +43,14 @@ export function CatalogPage() {
         setSheetOpen(false);
     }, []);
 
+    const handleOpenAutoFocus = useCallback((e: Event) => {
+        e.preventDefault();
+        const treeItem = sheetBodyRef.current?.querySelector<HTMLElement>(
+            '[role="treeitem"][tabindex="0"]',
+        );
+        (treeItem ?? sheetBodyRef.current)?.focus();
+    }, []);
+
     return (
         <div className="p-6">
             <h1 className="mb-6 text-2xl font-semibold">Catalog</h1>
@@ -51,19 +62,45 @@ export function CatalogPage() {
                 ) : (
                     <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
                         <SheetTrigger asChild>
-                            <Button variant="outline" className="w-full">
-                                {triggerLabel}
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start gap-2"
+                            >
+                                <span className="min-w-0 truncate">
+                                    {triggerLabel}
+                                </span>
+                                <ChevronDown
+                                    aria-hidden="true"
+                                    className="ml-auto size-4 shrink-0"
+                                />
                             </Button>
                         </SheetTrigger>
                         <SheetContent
                             side="left"
+                            showCloseButton={false}
                             aria-describedby={undefined}
-                            className="overflow-y-auto"
+                            className="overflow-y-auto p-4"
+                            onOpenAutoFocus={handleOpenAutoFocus}
                         >
-                            <SheetTitle>Categories</SheetTitle>
-                            <CategoryTree
-                                onCategorySelected={handleCategorySelected}
-                            />
+                            <div className="flex items-center justify-between">
+                                <SheetTitle>Categories</SheetTitle>
+                                <SheetClose asChild>
+                                    <Button variant="ghost" size="icon-sm">
+                                        <X aria-hidden="true" />
+                                        <span className="sr-only">Close</span>
+                                    </Button>
+                                </SheetClose>
+                            </div>
+                            <div
+                                ref={sheetBodyRef}
+                                tabIndex={-1}
+                                className="outline-none"
+                            >
+                                <CategoryTree
+                                    variant="sheet"
+                                    onCategorySelected={handleCategorySelected}
+                                />
+                            </div>
                         </SheetContent>
                     </Sheet>
                 )}

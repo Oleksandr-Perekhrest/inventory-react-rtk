@@ -1,4 +1,5 @@
 // outsource dependencies
+import { cn } from "cn";
 import { X } from "lucide-react";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 
@@ -32,8 +33,10 @@ import {
 const labelId = "categories-tree-label";
 
 export function CategoryTree({
+    variant = "panel",
     onCategorySelected,
 }: {
+    variant?: "panel" | "sheet";
     onCategorySelected?: (id: string) => void;
 }) {
     const { data, isLoading, isError, error, refetch } =
@@ -164,10 +167,18 @@ export function CategoryTree({
         : rootChildIds;
 
     return (
-        <div className="flex w-full shrink-0 flex-col gap-2 self-start rounded-sm border bg-card p-3">
+        <div
+            className={cn(
+                "flex w-full shrink-0 flex-col gap-2 self-start",
+                variant === "panel" && "rounded-sm border bg-card p-3",
+            )}
+        >
             <span
                 id={labelId}
-                className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                className={cn(
+                    "font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
+                    variant === "sheet" && "sr-only",
+                )}
             >
                 Categories
             </span>
