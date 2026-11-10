@@ -125,7 +125,7 @@ export function ProductsTable() {
                                             <button
                                                 type="button"
                                                 className={cn(
-                                                    "flex w-full items-center gap-1",
+                                                    "flex w-full items-center gap-1 uppercase tracking-wider",
                                                     isRight && "justify-end",
                                                 )}
                                                 onClick={(e) =>

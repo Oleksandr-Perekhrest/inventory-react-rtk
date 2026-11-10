@@ -1,5 +1,5 @@
 // local dependencies
-import type { Product } from "../../domain";
+import type { Unit, Product } from "../../domain";
 
 export function stockStatus(product: Product): "out" | "low" | "ok" {
     if (product.quantity === 0) return "out";
@@ -22,6 +22,14 @@ const quantityFormatter = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 3,
 });
 
-export function formatQuantity(quantity: number, unit: string): string {
-    return `${quantityFormatter.format(quantity)} ${unit}`;
+// Display labels; "L" for litres so it is not confused with "1" in mono fonts
+const UNIT_LABELS: Record<Unit, string> = {
+    pcs: "pcs",
+    kg: "kg",
+    l: "L",
+    box: "box",
+};
+
+export function formatQuantity(quantity: number, unit: Unit): string {
+    return `${quantityFormatter.format(quantity)} ${UNIT_LABELS[unit]}`;
 }
