@@ -4,12 +4,13 @@ import { ChevronRight } from "lucide-react";
 import { memo, useRef, useEffect } from "react";
 
 // local dependencies
-import type { Category } from "../../domain";
+import type { Category } from "@/domain";
 import { selectChildrenIndex } from "./selectors";
-import { useTreeSearch } from "./TreeSearchContext";
 import { ROOT, splitByMatch, type ParentKey } from "./tree";
-import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { useGetCategoriesQuery } from "../../api/endpoints/categories";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useTreeSearch, useTreeSelect } from "./TreeSearchContext";
+import { useGetCategoriesQuery } from "@/api/endpoints/categories";
+import { useIsCategorySelected } from "@/features/catalog/useCatalogSearch";
 import {
     toggle,
     setFocused,
@@ -43,7 +44,9 @@ function TreeNodeInner({ id, level }: Props) {
 
     const isExpanded = useAppSelector((state) => selectIsExpanded(state, id));
     const isFocused = useAppSelector((state) => selectIsFocused(state, id));
+    const isSelected = useIsCategorySelected(id);
     const { query, visible } = useTreeSearch();
+    const onSelect = useTreeSelect();
     const isSearchActive = query !== "";
 
     useEffect(() => {
@@ -71,18 +74,25 @@ function TreeNodeInner({ id, level }: Props) {
     return (
         <li
             ref={liRef}
+            data-category-id={id}
             role="treeitem"
             aria-level={level}
             aria-setsize={setSize}
             aria-posinset={posInSet}
             tabIndex={isFocused ? 0 : -1}
             aria-expanded={displayHasChildren ? effectiveExpanded : undefined}
+            aria-selected={isSelected ? true : undefined}
             className="flex flex-col outline-none [&:focus-visible>div:first-child]:ring-2 [&:focus-visible>div:first-child]:ring-ring"
         >
             <div
-                className="flex h-8 cursor-pointer items-center gap-1 rounded-sm pr-1 text-sm text-foreground"
+                className={cn(
+                    "flex h-8 cursor-pointer items-center gap-1 rounded-sm pr-1 text-sm text-foreground",
+                    isSelected &&
+                        "bg-secondary text-secondary-foreground font-medium",
+                )}
                 style={{ paddingLeft: `${(level - 1) * 18 + 4}px` }}
                 onClick={() => {
+                    onSelect(id);
                     dispatch(setFocused(id));
                     liRef.current?.focus();
                 }}

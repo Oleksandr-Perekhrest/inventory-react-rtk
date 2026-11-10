@@ -9,7 +9,7 @@ import { renderWithRouter } from "@/test/renderWithRouter";
 function getMobileBreadcrumb() {
     // The "Open menu" button lives in the same inner div as the breadcrumb nav.
     // Scoping through its parentElement isolates our breadcrumb from any
-    // page-level <nav aria-label="Breadcrumb"> elements (e.g. design-preview).
+    // page-level <nav aria-label="Breadcrumb"> elements on a given page.
     const mobileBar = screen.getByRole("button", {
         name: "Open menu",
     }).parentElement!;
@@ -41,8 +41,8 @@ describe("MobileNav breadcrumb", () => {
         ).not.toBeInTheDocument();
     });
 
-    it("on /design-preview has no current section in the breadcrumb", async () => {
-        await renderWithRouter("/design-preview");
+    it("on an unknown path has no current section in the breadcrumb", async () => {
+        await renderWithRouter("/unknown-path");
         const breadcrumb = getMobileBreadcrumb();
         expect(breadcrumb.querySelector('[aria-current="page"]')).toBeNull();
     });

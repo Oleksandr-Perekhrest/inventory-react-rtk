@@ -1,4 +1,5 @@
 // outsource dependencies
+import { cn } from "cn";
 import { X } from "lucide-react";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 
@@ -6,19 +7,38 @@ import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { TreeNode } from "./TreeNode";
 import { getKeyAction } from "./navigation";
 import { Input } from "@/components/ui/input";
+import { getErrorMessage } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { selectChildrenIndex } from "./selectors";
-import { getErrorMessage } from "../../api/errors";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { useGetCategoriesQuery } from "../../api/endpoints/categories";
-import { INACTIVE_SEARCH, TreeSearchContext } from "./TreeSearchContext";
-import { toggle, setFocused, selectFocusedId } from "./categoryTreeSlice";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useGetCategoriesQuery } from "@/api/endpoints/categories";
 import { ROOT, findMatches, getVisibleOrder, collectAncestors } from "./tree";
+import {
+    toggle,
+    expandMany,
+    setFocused,
+    selectFocusedId,
+} from "./categoryTreeSlice";
+import {
+    useSelectCategory,
+    useSelectedCategoryId,
+} from "@/features/catalog/useCatalogSearch";
+import {
+    INACTIVE_SEARCH,
+    TreeSearchContext,
+    TreeSelectContext,
+} from "./TreeSearchContext";
 
 const labelId = "categories-tree-label";
 
-export function CategoryTree() {
+export function CategoryTree({
+    variant = "panel",
+    onCategorySelected,
+}: {
+    variant?: "panel" | "sheet";
+    onCategorySelected?: (id: string) => void;
+}) {
     const { data, isLoading, isError, error, refetch } =
         useGetCategoriesQuery();
     const [query, setQuery] = useState("");
@@ -26,9 +46,38 @@ export function CategoryTree() {
     const isSearchActive = trimmedQuery !== "";
     const dispatch = useAppDispatch();
     const focusedId = useAppSelector(selectFocusedId);
+    const selectCategory = useSelectCategory();
+    const selectedId = useSelectedCategoryId();
+    // Ancestors as a primitive key: effect re-runs only when the path changes,
+    // not on every refetch. null = selected id is not in the data (yet).
+    const selectedAncestorsKey = useMemo(() => {
+        if (!data || !selectedId || !data.entities[selectedId]) return null;
+        return [...collectAncestors(data, new Set([selectedId]))].join(",");
+    }, [data, selectedId]);
     const expanded = useAppSelector((state) => state.categoryTree.expanded);
     const treeRef = useRef<HTMLUListElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const dataRef = useRef(data);
+    useEffect(() => {
+        dataRef.current = data;
+    }, [data]);
+
+    const handleSelect = useCallback(
+        (id: string) => {
+            if (isSearchActive) {
+                const d = dataRef.current;
+                if (d) {
+                    dispatch(
+                        expandMany([...collectAncestors(d, new Set([id]))]),
+                    );
+                }
+                setQuery("");
+            }
+            selectCategory(id);
+            onCategorySelected?.(id);
+        },
+        [isSearchActive, dispatch, selectCategory, onCategorySelected],
+    );
 
     const searchContext = useMemo(() => {
         if (!trimmedQuery || !data) return INACTIVE_SEARCH;
@@ -71,6 +120,16 @@ export function CategoryTree() {
         }
     }, [visibleOrder, focusedId, dispatch]);
 
+    useEffect(() => {
+        if (isSearchActive || !selectedId || selectedAncestorsKey === null) {
+            return;
+        }
+        if (selectedAncestorsKey) {
+            dispatch(expandMany(selectedAncestorsKey.split(",")));
+        }
+        dispatch(setFocused(selectedId));
+    }, [selectedId, selectedAncestorsKey, isSearchActive, dispatch]);
+
     const handleTreeKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
             const action = getKeyAction(
@@ -84,11 +143,20 @@ export function CategoryTree() {
             e.preventDefault();
             if (action.type === "focus") {
                 dispatch(setFocused(action.id));
-            } else {
+            } else if (action.type === "toggle") {
                 dispatch(toggle(action.id));
+            } else {
+                handleSelect(action.id);
             }
         },
-        [visibleOrder, focusedId, isSearchActive, names, dispatch],
+        [
+            visibleOrder,
+            focusedId,
+            isSearchActive,
+            names,
+            dispatch,
+            handleSelect,
+        ],
     );
 
     const rootChildIds = data
@@ -99,10 +167,18 @@ export function CategoryTree() {
         : rootChildIds;
 
     return (
-        <div className="flex w-full shrink-0 flex-col gap-2 self-start rounded-sm border bg-card p-3 md:w-64">
+        <div
+            className={cn(
+                "flex w-full shrink-0 flex-col gap-2 self-start",
+                variant === "panel" && "rounded-sm border bg-card p-3",
+            )}
+        >
             <span
                 id={labelId}
-                className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                className={cn(
+                    "font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
+                    variant === "sheet" && "sr-only",
+                )}
             >
                 Categories
             </span>
@@ -119,8 +195,17 @@ export function CategoryTree() {
                         if (e.key === "Escape") setQuery("");
                         if (e.key === "ArrowDown") {
                             e.preventDefault();
+                            if (visibleOrder.length === 0) return;
+                            const targetId = isSearchActive
+                                ? (visibleOrder.find((n) =>
+                                      searchContext.matches.has(n.id),
+                                  )?.id ?? visibleOrder[0].id)
+                                : visibleOrder[0].id;
+                            dispatch(setFocused(targetId));
                             treeRef.current
-                                ?.querySelector<HTMLElement>('[tabindex="0"]')
+                                ?.querySelector<HTMLElement>(
+                                    `[data-category-id="${targetId}"]`,
+                                )
                                 ?.focus();
                         }
                     }}
@@ -164,25 +249,27 @@ export function CategoryTree() {
                 </div>
             )}
             {data && (
-                <TreeSearchContext.Provider value={searchContext}>
-                    {isSearchActive && searchContext.matches.size === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            {`No categories match "${trimmedQuery}"`}
-                        </p>
-                    ) : (
-                        <ul
-                            ref={treeRef}
-                            role="tree"
-                            aria-labelledby={labelId}
-                            className="flex flex-col gap-0.5"
-                            onKeyDown={handleTreeKeyDown}
-                        >
-                            {visibleRootIds.map((id) => (
-                                <TreeNode key={id} id={id} level={1} />
-                            ))}
-                        </ul>
-                    )}
-                </TreeSearchContext.Provider>
+                <TreeSelectContext.Provider value={handleSelect}>
+                    <TreeSearchContext.Provider value={searchContext}>
+                        {isSearchActive && searchContext.matches.size === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                {`No categories match "${trimmedQuery}"`}
+                            </p>
+                        ) : (
+                            <ul
+                                ref={treeRef}
+                                role="tree"
+                                aria-labelledby={labelId}
+                                className="flex flex-col gap-0.5"
+                                onKeyDown={handleTreeKeyDown}
+                            >
+                                {visibleRootIds.map((id) => (
+                                    <TreeNode key={id} id={id} level={1} />
+                                ))}
+                            </ul>
+                        )}
+                    </TreeSearchContext.Provider>
+                </TreeSelectContext.Provider>
             )}
         </div>
     );

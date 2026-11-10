@@ -147,29 +147,31 @@ describe("Home / End", () => {
 });
 
 describe("Enter / Space", () => {
-    it("Enter on a parent returns toggle", () => {
+    it("Enter on a parent returns select", () => {
         expect(getKeyAction(order, "cat-2", "Enter", false)).toEqual({
-            type: "toggle",
+            type: "select",
             id: "cat-2",
         });
     });
 
-    it("Space on a parent returns toggle", () => {
+    it("Space on a parent returns select", () => {
         expect(getKeyAction(order, "cat-4", " ", false)).toEqual({
-            type: "toggle",
+            type: "select",
             id: "cat-4",
         });
     });
 
-    it("Enter on a leaf returns none", () => {
+    it("Enter on a leaf returns select", () => {
         expect(getKeyAction(order, "cat-7", "Enter", false)).toEqual({
-            type: "none",
+            type: "select",
+            id: "cat-7",
         });
     });
 
-    it("Space on a leaf returns none", () => {
+    it("Space on a leaf returns select", () => {
         expect(getKeyAction(order, "cat-3", " ", false)).toEqual({
-            type: "none",
+            type: "select",
+            id: "cat-3",
         });
     });
 });
@@ -231,15 +233,17 @@ describe("search mode", () => {
         });
     });
 
-    it("Enter on a parent returns none, never toggles", () => {
+    it("Enter on a parent returns select", () => {
         expect(getKeyAction(searchOrder, "cat-2", "Enter", true)).toEqual({
-            type: "none",
+            type: "select",
+            id: "cat-2",
         });
     });
 
-    it("Space on a parent returns none, never toggles", () => {
+    it("Space on a parent returns select", () => {
         expect(getKeyAction(searchOrder, "cat-4", " ", true)).toEqual({
-            type: "none",
+            type: "select",
+            id: "cat-4",
         });
     });
 });

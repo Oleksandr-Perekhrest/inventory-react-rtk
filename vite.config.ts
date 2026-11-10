@@ -37,6 +37,11 @@ export default defineConfig({
                             priority: 10,
                         },
                         {
+                            name: "vendor-table",
+                            test: /[\\/]node_modules[\\/]@tanstack[\\/](react-table|table-core)[\\/]/,
+                            priority: 10,
+                        },
+                        {
                             name: "vendor-router",
                             test: /[\\/]node_modules[\\/]@tanstack[\\/]/,
                             priority: 9,
@@ -50,6 +55,11 @@ export default defineConfig({
                             name: "vendor-ui",
                             test: /[\\/]node_modules[\\/](radix-ui|@radix-ui|lucide-react|class-variance-authority)[\\/]/,
                             priority: 7,
+                        },
+                        {
+                            name: "vendor-zod",
+                            test: /[\\/]node_modules[\\/]zod[\\/]/,
+                            priority: 6,
                         },
                     ],
                 },

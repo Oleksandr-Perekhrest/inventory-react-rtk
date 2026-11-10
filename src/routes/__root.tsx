@@ -1,8 +1,9 @@
 // outsource dependencies
 import type { CSSProperties } from "react";
-import { Outlet, createRootRoute } from "@tanstack/react-router";
+import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 
 // local dependencies
+import type { AppStore } from "@/store/store";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NotFound, AppSidebar } from "@/components/layout/AppSidebar";
@@ -30,7 +31,7 @@ export function RootLayout() {
     );
 }
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{ store: AppStore }>()({
     component: RootLayout,
     notFoundComponent: NotFound,
 });
