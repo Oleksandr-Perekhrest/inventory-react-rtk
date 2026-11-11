@@ -1,6 +1,6 @@
 // outsource dependencies
-import { useMemo, useState } from "react";
 import { X, MoreHorizontal } from "lucide-react";
+import { useRef, useMemo, useState } from "react";
 
 // local dependencies
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,11 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+export const PRODUCTS_HEADING_ID = "products-heading";
+
 export function ProductsTableHeader() {
     const [dialogOpen, setDialogOpen] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
     const categoryId = useSelectedCategoryId();
     const {
         data,
@@ -62,12 +65,19 @@ export function ProductsTableHeader() {
 
     return (
         <div className="flex items-center gap-2">
-            <h2 className="min-w-0 truncate text-lg font-semibold">{title}</h2>
+            <h2
+                id={PRODUCTS_HEADING_ID}
+                tabIndex={-1}
+                className="min-w-0 truncate text-lg font-semibold"
+            >
+                {title}
+            </h2>
             {categoryId !== undefined && categoryExists && (
                 <>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
+                                ref={triggerRef}
                                 variant="ghost"
                                 size="icon"
                                 className="shrink-0"
@@ -93,6 +103,7 @@ export function ProductsTableHeader() {
                         title={`Move "${categoryName ?? ""}"`}
                         description="Choose a new parent. The category is placed last."
                         options={options}
+                        getReturnFocusTarget={() => triggerRef.current}
                         onSelect={(selectedId) => {
                             if (data === undefined || categoryId === undefined)
                                 return;

@@ -7,6 +7,7 @@ import { it, expect, afterAll, describe, afterEach, beforeAll } from "vitest";
 import { setBackendReady } from "@/api/backendReady";
 import { createMockServer } from "@/test/mockServer";
 import { renderWithRouter } from "@/test/renderWithRouter";
+import { PRODUCTS_HEADING_ID } from "@/features/products-table/ProductsTableHeader";
 
 const { db, server } = createMockServer();
 
@@ -92,6 +93,105 @@ describe("Product move via dialog (T10)", () => {
                     name: `Actions for ${product.name}`,
                 }),
             ).toHaveFocus();
+        });
+    });
+});
+
+describe("Product move with category filter — row removed (T11)", () => {
+    it("11 — when the moved product leaves the filtered view, focus falls back to the products heading", async () => {
+        const user = userEvent.setup();
+
+        // cat-bread has products; pick the alphabetically first one
+        const catBreadProducts = [...db.products]
+            .filter((p) => p.categoryId === "cat-bread")
+            .sort((a, b) => a.name.localeCompare(b.name));
+        const product = catBreadProducts[0];
+        if (!product) throw new Error("No products in cat-bread");
+
+        const targetCategory = db.categories.find(
+            (c) => c.id === "cat-packaging",
+        );
+        if (!targetCategory) throw new Error("cat-packaging not in seed");
+
+        // Open catalog filtered to cat-bread
+        await renderWithRouter("/catalog?categoryId=cat-bread");
+
+        const actionsButton = await screen.findByRole("button", {
+            name: `Actions for ${product.name}`,
+        });
+
+        actionsButton.focus();
+        await user.keyboard("{Enter}");
+
+        await screen.findByRole("menuitem", { name: "Move to category…" });
+        await user.keyboard("{Enter}");
+
+        const combobox = await screen.findByRole("combobox");
+        await user.type(combobox, "pack");
+        await user.keyboard("{Enter}");
+
+        // Dialog closes
+        await waitFor(() => {
+            expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        });
+
+        // Toast confirms the move
+        await screen.findByText(
+            `Moved "${product.name}" to "${targetCategory.name}"`,
+        );
+
+        // Row disappears because the product is no longer in cat-bread
+        await waitFor(() => {
+            expect(
+                screen.queryByRole("button", {
+                    name: `Actions for ${product.name}`,
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        // Focus falls back to the products heading (trigger is disconnected)
+        await waitFor(() => {
+            expect(document.getElementById(PRODUCTS_HEADING_ID)).toHaveFocus();
+        });
+    });
+});
+
+describe("Category move via header button (T12)", () => {
+    it("12 — after moving a category via the header '⋯' dialog, focus returns to that trigger button", async () => {
+        const user = userEvent.setup();
+
+        const category = db.categories.find((c) => c.id === "cat-bread");
+        if (!category) throw new Error("cat-bread not in seed");
+
+        // Open catalog filtered to cat-bread
+        await renderWithRouter("/catalog?categoryId=cat-bread");
+
+        // Wait for the header with the category actions button
+        const actionsButton = await screen.findByRole("button", {
+            name: `Actions for category ${category.name}`,
+        });
+
+        actionsButton.focus();
+        await user.keyboard("{Enter}");
+
+        await screen.findByRole("menuitem", { name: "Move category…" });
+        await user.keyboard("{Enter}");
+
+        const combobox = await screen.findByRole("combobox");
+        await user.type(combobox, "pack");
+        await user.keyboard("{Enter}");
+
+        // Dialog closes
+        await waitFor(() => {
+            expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        });
+
+        // Toast confirms the move
+        await screen.findByText(`Moved "${category.name}" to "Packaging"`);
+
+        // Focus returns to the category header trigger (it stays mounted after a category move)
+        await waitFor(() => {
+            expect(actionsButton).toHaveFocus();
         });
     });
 });

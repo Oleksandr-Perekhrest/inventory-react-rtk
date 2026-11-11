@@ -21,6 +21,7 @@ type Props = {
     description: string;
     options: MoveTargetOption[];
     onSelect(id: Category["id"] | null): void;
+    getReturnFocusTarget?: () => HTMLElement | null;
 };
 
 export function MoveToCategoryDialog({
@@ -30,6 +31,7 @@ export function MoveToCategoryDialog({
     description,
     options,
     onSelect,
+    getReturnFocusTarget,
 }: Props) {
     const listboxId = useId();
     const listRef = useRef<HTMLUListElement>(null);
@@ -94,7 +96,15 @@ export function MoveToCategoryDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
+            <DialogContent
+                onCloseAutoFocus={(event) => {
+                    const target = getReturnFocusTarget?.();
+                    if (target) {
+                        event.preventDefault();
+                        target.focus();
+                    }
+                }}
+            >
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>{description}</DialogDescription>
