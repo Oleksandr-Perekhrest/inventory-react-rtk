@@ -1,16 +1,27 @@
 // outsource dependencies
 import { cn } from "cn";
-import { useMemo } from "react";
 import { useTable } from "@tanstack/react-table";
+import { useRef, useMemo, useState } from "react";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 // local dependencies
 import type { Product } from "@/domain";
-import { columns, features } from "./columns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProductMoveContext } from "./ProductMoveContext";
+import { DraggableProductRow } from "./DraggableProductRow";
+import { PRODUCTS_HEADING_ID } from "./ProductsTableHeader";
 import { getErrorStatus, getErrorMessage } from "@/api/errors";
-import type { CatalogSearch } from "@/features/catalog/catalogSearch";
+import { matchesCategoryFilter } from "@/api/productSelection";
+import { useMoveCommands } from "@/features/catalog/moveCommands";
+import { useGetCategoriesQuery } from "@/api/endpoints/categories";
+import { columns, features, RIGHT_ALIGNED_COLUMNS } from "./columns";
+import { buildMoveTargets } from "@/features/category-tree/moveTargets";
+import { MoveToCategoryDialog } from "@/features/category-tree/MoveToCategoryDialog";
+import {
+    toProductsParams,
+    type CatalogSearch,
+} from "@/features/catalog/catalogSearch";
 import {
     useCatalogSearch,
     useSelectCategory,
@@ -27,8 +38,6 @@ import {
 
 const HEADER_CLASS =
     "h-9 bg-muted px-3 font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";
-const RIGHT_ALIGN = new Set(["quantity", "minQuantity", "price"]);
-const WRAP_COLS = new Set(["name"]);
 const EMPTY_PRODUCTS: Product[] = [];
 
 function isSortKey(id: string): id is CatalogSearch["sort"] {
@@ -40,10 +49,56 @@ export function ProductsTable() {
     const { data, isLoading, isFetching, isError, error, refetch } =
         useCatalogProducts();
     const selectCategory = useSelectCategory();
+    const { moveProduct } = useMoveCommands();
+    const { data: categoriesData } = useGetCategoriesQuery(undefined);
+
+    const [moveProductState, setMoveProductState] = useState<Product | null>(
+        null,
+    );
+    const moveTriggerRef = useRef<HTMLElement | null>(null);
+    const moveTargetCategoryRef = useRef<string | null>(null);
 
     const sorting = useMemo(
         () => [{ id: search.sort, desc: search.order === "desc" }],
         [search.sort, search.order],
+    );
+
+    const moveOptions = useMemo(
+        () =>
+            moveProductState !== null && categoriesData !== undefined
+                ? buildMoveTargets(categoriesData, {
+                      kind: "product",
+                      categoryId: moveProductState.categoryId,
+                  })
+                : [],
+        [moveProductState, categoriesData],
+    );
+
+    function getReturnFocusTarget(): HTMLElement | null {
+        const trigger = moveTriggerRef.current;
+        if (trigger && trigger.isConnected) {
+            const targetId = moveTargetCategoryRef.current;
+            if (targetId === null || categoriesData === undefined)
+                return trigger;
+            const staysInView = matchesCategoryFilter(
+                targetId,
+                toProductsParams(search),
+                categoriesData,
+            );
+            if (staysInView) return trigger;
+        }
+        return document.getElementById(PRODUCTS_HEADING_ID);
+    }
+
+    const moveContextValue = useMemo(
+        () => ({
+            requestMove(product: Product, trigger: HTMLElement) {
+                moveTriggerRef.current = trigger;
+                moveTargetCategoryRef.current = null;
+                setMoveProductState(product);
+            },
+        }),
+        [],
     );
 
     const table = useTable({
@@ -103,174 +158,196 @@ export function ProductsTable() {
     }
 
     return (
-        <>
-            {isError && data && (
-                <div
-                    role="alert"
-                    className="flex items-center justify-between gap-2 rounded-sm border bg-card p-3 text-sm text-destructive"
-                >
-                    <span>{getErrorMessage(error)}</span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void refetch()}
+        <ProductMoveContext.Provider value={moveContextValue}>
+            <>
+                {isError && data && (
+                    <div
+                        role="alert"
+                        className="flex items-center justify-between gap-2 rounded-sm border bg-card p-3 text-sm text-destructive"
                     >
-                        Retry
-                    </Button>
-                </div>
-            )}
-            <div
-                className={cn(
-                    "overflow-hidden rounded-sm border bg-card",
-                    isFetching && !!data && "opacity-60",
+                        <span>{getErrorMessage(error)}</span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void refetch()}
+                        >
+                            Retry
+                        </Button>
+                    </div>
                 )}
-                aria-busy={isFetching && !!data ? true : undefined}
-            >
-                <Table className="min-w-176">
-                    <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow
-                                key={headerGroup.id}
-                                className="border-0 hover:bg-transparent"
-                            >
-                                {headerGroup.headers.map((header) => {
-                                    const isSorted =
-                                        header.column.getIsSorted();
-                                    const isRight = RIGHT_ALIGN.has(
-                                        header.column.id,
-                                    );
-                                    const canSort = header.column.getCanSort();
-                                    return (
-                                        <TableHead
-                                            key={header.id}
-                                            className={cn(
-                                                HEADER_CLASS,
-                                                isRight && "text-right",
-                                            )}
-                                            aria-sort={
-                                                isSorted === "asc"
-                                                    ? "ascending"
-                                                    : isSorted === "desc"
-                                                      ? "descending"
-                                                      : undefined
-                                            }
-                                        >
-                                            {header.isPlaceholder ? null : canSort ? (
-                                                <button
-                                                    type="button"
-                                                    className={cn(
-                                                        "flex w-full items-center gap-1 uppercase tracking-wider",
-                                                        isRight &&
-                                                            "justify-end",
-                                                    )}
-                                                    onClick={(e) =>
-                                                        header.column.getToggleSortingHandler()?.(
-                                                            e,
-                                                        )
-                                                    }
-                                                >
+                <div
+                    className={cn(
+                        "overflow-hidden rounded-sm border bg-card",
+                        isFetching && !!data && "opacity-60",
+                    )}
+                    aria-busy={isFetching && !!data ? true : undefined}
+                >
+                    <Table className="min-w-176">
+                        <TableHeader>
+                            {table.getHeaderGroups().map((headerGroup) => (
+                                <TableRow
+                                    key={headerGroup.id}
+                                    className="border-0 hover:bg-transparent"
+                                >
+                                    {headerGroup.headers.map((header) => {
+                                        const isSorted =
+                                            header.column.getIsSorted();
+                                        const isRight =
+                                            RIGHT_ALIGNED_COLUMNS.has(
+                                                header.column.id,
+                                            );
+                                        const canSort =
+                                            header.column.getCanSort();
+                                        return (
+                                            <TableHead
+                                                key={header.id}
+                                                className={cn(
+                                                    HEADER_CLASS,
+                                                    isRight && "text-right",
+                                                )}
+                                                aria-sort={
+                                                    isSorted === "asc"
+                                                        ? "ascending"
+                                                        : isSorted === "desc"
+                                                          ? "descending"
+                                                          : undefined
+                                                }
+                                            >
+                                                {header.isPlaceholder ? null : canSort ? (
+                                                    <button
+                                                        type="button"
+                                                        className={cn(
+                                                            "flex w-full items-center gap-1 uppercase tracking-wider",
+                                                            isRight &&
+                                                                "justify-end",
+                                                        )}
+                                                        onClick={(e) =>
+                                                            header.column.getToggleSortingHandler()?.(
+                                                                e,
+                                                            )
+                                                        }
+                                                    >
+                                                        <table.FlexRender
+                                                            header={header}
+                                                        />
+                                                        {isSorted === "asc" ? (
+                                                            <ArrowUp
+                                                                aria-hidden="true"
+                                                                className="size-3 shrink-0"
+                                                            />
+                                                        ) : isSorted ===
+                                                          "desc" ? (
+                                                            <ArrowDown
+                                                                aria-hidden="true"
+                                                                className="size-3 shrink-0"
+                                                            />
+                                                        ) : (
+                                                            <ArrowUpDown
+                                                                aria-hidden="true"
+                                                                className="size-3 shrink-0 opacity-50"
+                                                            />
+                                                        )}
+                                                    </button>
+                                                ) : (
                                                     <table.FlexRender
                                                         header={header}
                                                     />
-                                                    {isSorted === "asc" ? (
-                                                        <ArrowUp
-                                                            aria-hidden="true"
-                                                            className="size-3 shrink-0"
-                                                        />
-                                                    ) : isSorted === "desc" ? (
-                                                        <ArrowDown
-                                                            aria-hidden="true"
-                                                            className="size-3 shrink-0"
-                                                        />
-                                                    ) : (
-                                                        <ArrowUpDown
-                                                            aria-hidden="true"
-                                                            className="size-3 shrink-0 opacity-50"
-                                                        />
+                                                )}
+                                            </TableHead>
+                                        );
+                                    })}
+                                </TableRow>
+                            ))}
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                Array.from({ length: 8 }).map((_, i) => (
+                                    <TableRow key={i}>
+                                        {table
+                                            .getAllLeafColumns()
+                                            .map((col) => (
+                                                <TableCell
+                                                    key={col.id}
+                                                    className={cn(
+                                                        RIGHT_ALIGNED_COLUMNS.has(
+                                                            col.id,
+                                                        ) && "text-right",
                                                     )}
-                                                </button>
-                                            ) : (
-                                                <table.FlexRender
-                                                    header={header}
-                                                />
-                                            )}
-                                        </TableHead>
-                                    );
-                                })}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            Array.from({ length: 8 }).map((_, i) => (
-                                <TableRow key={i}>
-                                    {table.getAllLeafColumns().map((col) => (
-                                        <TableCell
-                                            key={col.id}
-                                            className={cn(
-                                                RIGHT_ALIGN.has(col.id) &&
-                                                    "text-right",
-                                            )}
-                                        >
-                                            <Skeleton className="h-4 w-full rounded-sm" />
-                                        </TableCell>
-                                    ))}
+                                                >
+                                                    <Skeleton className="h-4 w-full rounded-sm" />
+                                                </TableCell>
+                                            ))}
+                                    </TableRow>
+                                ))
+                            ) : table.getRowModel().rows.length === 0 ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={columns.length}
+                                        className="h-24 text-center text-muted-foreground"
+                                    >
+                                        {search.q || search.stock ? (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <span>
+                                                    No products match the
+                                                    filters
+                                                </span>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        updateSearch({
+                                                            q: undefined,
+                                                            stock: undefined,
+                                                        })
+                                                    }
+                                                >
+                                                    Clear filters
+                                                </Button>
+                                            </div>
+                                        ) : search.categoryId ? (
+                                            "No products in this category"
+                                        ) : (
+                                            "No products"
+                                        )}
+                                    </TableCell>
                                 </TableRow>
-                            ))
-                        ) : table.getRowModel().rows.length === 0 ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={columns.length}
-                                    className="h-24 text-center text-muted-foreground"
-                                >
-                                    {search.q || search.stock ? (
-                                        <div className="flex flex-col items-center gap-2">
-                                            <span>
-                                                No products match the filters
-                                            </span>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                    updateSearch({
-                                                        q: undefined,
-                                                        stock: undefined,
-                                                    })
-                                                }
-                                            >
-                                                Clear filters
-                                            </Button>
-                                        </div>
-                                    ) : search.categoryId ? (
-                                        "No products in this category"
-                                    ) : (
-                                        "No products"
-                                    )}
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow key={row.id}>
-                                    {row.getAllCells().map((cell) => (
-                                        <TableCell
-                                            key={cell.id}
-                                            className={cn(
-                                                RIGHT_ALIGN.has(
-                                                    cell.column.id,
-                                                ) && "text-right",
-                                                WRAP_COLS.has(cell.column.id) &&
-                                                    "whitespace-normal",
-                                            )}
-                                        >
-                                            <table.FlexRender cell={cell} />
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-        </>
+                            ) : (
+                                table
+                                    .getRowModel()
+                                    .rows.map((row) => (
+                                        <DraggableProductRow
+                                            key={row.id}
+                                            row={row}
+                                        />
+                                    ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+                <MoveToCategoryDialog
+                    open={moveProductState !== null}
+                    onOpenChange={(open) => {
+                        if (!open) setMoveProductState(null);
+                    }}
+                    title={
+                        moveProductState
+                            ? `Move "${moveProductState.name}"`
+                            : ""
+                    }
+                    description="Choose a category for this product."
+                    options={moveOptions}
+                    getReturnFocusTarget={getReturnFocusTarget}
+                    onSelect={(selectedId) => {
+                        if (selectedId === null || !moveProductState) return;
+                        moveTargetCategoryRef.current = selectedId;
+                        void moveProduct({
+                            id: moveProductState.id,
+                            categoryId: selectedId,
+                            name: moveProductState.name,
+                        });
+                    }}
+                />
+            </>
+        </ProductMoveContext.Provider>
     );
 }

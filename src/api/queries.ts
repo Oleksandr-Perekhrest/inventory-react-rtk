@@ -34,6 +34,17 @@ export const movementsQuerySchema = z.object({
     productId: z.string().optional(),
 });
 
+export const moveCategoryBodySchema = z.strictObject({
+    parentId: z.string().min(1).nullable(),
+    index: z.int(),
+});
+
+export const updateProductBodySchema = z.strictObject({
+    categoryId: z.string().min(1),
+});
+
+export type MoveCategoryBody = z.infer<typeof moveCategoryBodySchema>;
+export type UpdateProductBody = z.infer<typeof updateProductBodySchema>;
 export type ListProductsQuery = z.output<typeof listProductsQuerySchema>;
 export type MovementsQuery = z.output<typeof movementsQuerySchema>;
 

@@ -10,7 +10,9 @@ import {
     selectFocusedId,
     selectIsFocused,
     selectIsExpanded,
+    setDropIndicator,
     categoryTreeSlice,
+    selectDropZoneFor,
 } from "./categoryTreeSlice";
 
 const { reducer } = categoryTreeSlice;
@@ -104,5 +106,67 @@ describe("selectors", () => {
             const s = reducer(init, setFocused("cat-2"));
             expect(selectIsFocused(wrap(s), "cat-4")).toBe(false);
         });
+    });
+});
+
+describe("setDropIndicator", () => {
+    it("setting the same payload returns the same state object (no mutation)", () => {
+        const s1 = reducer(
+            init,
+            setDropIndicator({ targetId: "cat-2", zone: "inside" }),
+        );
+        const s2 = reducer(
+            s1,
+            setDropIndicator({ targetId: "cat-2", zone: "inside" }),
+        );
+        expect(s2).toBe(s1);
+    });
+
+    it("setting a different payload produces a new state object", () => {
+        const s1 = reducer(
+            init,
+            setDropIndicator({ targetId: "cat-2", zone: "inside" }),
+        );
+        const s2 = reducer(
+            s1,
+            setDropIndicator({ targetId: "cat-2", zone: "after" }),
+        );
+        expect(s2).not.toBe(s1);
+    });
+
+    it("null payload clears the drop indicator", () => {
+        const s1 = reducer(
+            init,
+            setDropIndicator({ targetId: "cat-2", zone: "inside" }),
+        );
+        const s2 = reducer(s1, setDropIndicator(null));
+        expect(s2.dropIndicator).toBeNull();
+    });
+
+    it("null payload when already null returns the same state object", () => {
+        const s2 = reducer(init, setDropIndicator(null));
+        expect(s2).toBe(init);
+    });
+});
+
+describe("selectDropZoneFor", () => {
+    it("returns the zone for the matching id", () => {
+        const s = reducer(
+            init,
+            setDropIndicator({ targetId: "cat-2", zone: "inside" }),
+        );
+        expect(selectDropZoneFor(wrap(s), "cat-2")).toBe("inside");
+    });
+
+    it("returns null for a non-matching id", () => {
+        const s = reducer(
+            init,
+            setDropIndicator({ targetId: "cat-2", zone: "inside" }),
+        );
+        expect(selectDropZoneFor(wrap(s), "cat-4")).toBeNull();
+    });
+
+    it("returns null when there is no drop indicator", () => {
+        expect(selectDropZoneFor(wrap(init), "cat-2")).toBeNull();
     });
 });

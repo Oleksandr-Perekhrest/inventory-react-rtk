@@ -4,8 +4,11 @@ import { notFound } from "../errors";
 import { paginate } from "../pagination";
 import type { Product } from "../../../domain";
 import type { Paginated } from "../../../api/types";
-import type { ListProductsQuery } from "../../../api/queries";
 import { buildChildrenMap, collectDescendantIds } from "../tree";
+import type {
+    ListProductsQuery,
+    UpdateProductBody,
+} from "../../../api/queries";
 
 export function listProducts({
     db,
@@ -94,4 +97,33 @@ export function getProduct({
     const product = db.products.find((p) => p.id === params["id"]);
     if (!product) throw notFound(`Product '${params["id"]}' not found`);
     return { body: product };
+}
+
+export function updateProductController({
+    db,
+    params,
+    body,
+}: {
+    db: Db;
+    params: Record<string, string>;
+    body: UpdateProductBody;
+}): { body: Product } {
+    const product = db.products.find((p) => p.id === params["id"]);
+    if (!product) throw notFound("Product not found");
+
+    const categoryExists = db.categories.some((c) => c.id === body.categoryId);
+    if (!categoryExists) throw notFound("Category not found");
+
+    if (product.categoryId === body.categoryId) {
+        return { body: product };
+    }
+
+    const updatedProduct = db.transaction((draft): Product => {
+        const p = draft.products.find((item) => item.id === params["id"]);
+        if (p === undefined) throw notFound("Product not found");
+        p.categoryId = body.categoryId;
+        return { ...p };
+    });
+
+    return { body: updatedProduct };
 }

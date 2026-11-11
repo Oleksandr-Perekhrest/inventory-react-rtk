@@ -4,6 +4,7 @@ import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 
 // local dependencies
 import type { AppStore } from "@/store/store";
+import { Toaster } from "@/components/ui/sonner";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NotFound, AppSidebar } from "@/components/layout/AppSidebar";
@@ -26,6 +27,7 @@ export function RootLayout() {
                     <Outlet />
                 </SidebarInset>
                 <MobileNav />
+                <Toaster />
             </SidebarProvider>
         </TooltipProvider>
     );

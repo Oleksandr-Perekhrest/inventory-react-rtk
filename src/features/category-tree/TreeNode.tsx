@@ -1,21 +1,28 @@
 // outsource dependencies
 import { cn } from "cn";
 import { ChevronRight } from "lucide-react";
-import { memo, useRef, useEffect } from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/react";
+import { memo, useRef, useEffect, useCallback } from "react";
 
 // local dependencies
 import type { Category } from "@/domain";
 import { selectChildrenIndex } from "./selectors";
 import { ROOT, splitByMatch, type ParentKey } from "./tree";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { useTreeSearch, useTreeSelect } from "./TreeSearchContext";
 import { useGetCategoriesQuery } from "@/api/endpoints/categories";
+import { toCategoryDraggableId, toCategoryDroppableId } from "./dnd";
 import { useIsCategorySelected } from "@/features/catalog/useCatalogSearch";
+import {
+    useTreeSearch,
+    useTreeSelect,
+    useTreeDndEnabled,
+} from "./TreeSearchContext";
 import {
     toggle,
     setFocused,
     selectIsFocused,
     selectIsExpanded,
+    selectDropZoneFor,
 } from "./categoryTreeSlice";
 
 type Props = {
@@ -45,9 +52,32 @@ function TreeNodeInner({ id, level }: Props) {
     const isExpanded = useAppSelector((state) => selectIsExpanded(state, id));
     const isFocused = useAppSelector((state) => selectIsFocused(state, id));
     const isSelected = useIsCategorySelected(id);
+    const dropZone = useAppSelector((s) => selectDropZoneFor(s, id));
     const { query, visible } = useTreeSearch();
     const onSelect = useTreeSelect();
     const isSearchActive = query !== "";
+    const { canDragCategories, canDrop } = useTreeDndEnabled();
+
+    const { ref: draggableRef, isDragSource } = useDraggable({
+        id: toCategoryDraggableId(id),
+        type: "category",
+        data: { categoryId: id },
+        disabled: !canDragCategories,
+    });
+    const { ref: droppableRef } = useDroppable({
+        id: toCategoryDroppableId(id),
+        type: "category",
+        accept: ["category", "product"],
+        data: { categoryId: id },
+        disabled: !canDrop,
+    });
+    const rowRef = useCallback(
+        (el: Element | null) => {
+            draggableRef(el);
+            droppableRef(el);
+        },
+        [draggableRef, droppableRef],
+    );
 
     useEffect(() => {
         if (!isFocused || !liRef.current) return;
@@ -85,10 +115,17 @@ function TreeNodeInner({ id, level }: Props) {
             className="flex flex-col outline-none [&:focus-visible>div:first-child]:ring-2 [&:focus-visible>div:first-child]:ring-ring"
         >
             <div
+                ref={rowRef}
                 className={cn(
                     "flex h-8 cursor-pointer items-center gap-1 rounded-sm pr-1 text-sm text-foreground",
                     isSelected &&
                         "bg-secondary text-secondary-foreground font-medium",
+                    isDragSource && "opacity-50",
+                    dropZone === "before" &&
+                        "shadow-[inset_0_2px_0_var(--color-primary)]",
+                    dropZone === "after" &&
+                        "shadow-[inset_0_-2px_0_var(--color-primary)]",
+                    dropZone === "inside" && "ring-2 ring-primary/60 bg-accent",
                 )}
                 style={{ paddingLeft: `${(level - 1) * 18 + 4}px` }}
                 onClick={() => {

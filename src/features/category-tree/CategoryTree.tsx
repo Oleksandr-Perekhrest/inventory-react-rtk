@@ -28,6 +28,7 @@ import {
     INACTIVE_SEARCH,
     TreeSearchContext,
     TreeSelectContext,
+    TreeDndEnabledContext,
 } from "./TreeSearchContext";
 
 const labelId = "categories-tree-label";
@@ -55,6 +56,13 @@ export function CategoryTree({
         return [...collectAncestors(data, new Set([selectedId]))].join(",");
     }, [data, selectedId]);
     const expanded = useAppSelector((state) => state.categoryTree.expanded);
+    const dndValue = useMemo(
+        () => ({
+            canDragCategories: variant === "panel" && !isSearchActive,
+            canDrop: variant === "panel",
+        }),
+        [variant, isSearchActive],
+    );
     const treeRef = useRef<HTMLUListElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const dataRef = useRef(data);
@@ -249,27 +257,30 @@ export function CategoryTree({
                 </div>
             )}
             {data && (
-                <TreeSelectContext.Provider value={handleSelect}>
-                    <TreeSearchContext.Provider value={searchContext}>
-                        {isSearchActive && searchContext.matches.size === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                                {`No categories match "${trimmedQuery}"`}
-                            </p>
-                        ) : (
-                            <ul
-                                ref={treeRef}
-                                role="tree"
-                                aria-labelledby={labelId}
-                                className="flex flex-col gap-0.5"
-                                onKeyDown={handleTreeKeyDown}
-                            >
-                                {visibleRootIds.map((id) => (
-                                    <TreeNode key={id} id={id} level={1} />
-                                ))}
-                            </ul>
-                        )}
-                    </TreeSearchContext.Provider>
-                </TreeSelectContext.Provider>
+                <TreeDndEnabledContext.Provider value={dndValue}>
+                    <TreeSelectContext.Provider value={handleSelect}>
+                        <TreeSearchContext.Provider value={searchContext}>
+                            {isSearchActive &&
+                            searchContext.matches.size === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    {`No categories match "${trimmedQuery}"`}
+                                </p>
+                            ) : (
+                                <ul
+                                    ref={treeRef}
+                                    role="tree"
+                                    aria-labelledby={labelId}
+                                    className="flex flex-col gap-0.5"
+                                    onKeyDown={handleTreeKeyDown}
+                                >
+                                    {visibleRootIds.map((id) => (
+                                        <TreeNode key={id} id={id} level={1} />
+                                    ))}
+                                </ul>
+                            )}
+                        </TreeSearchContext.Provider>
+                    </TreeSelectContext.Provider>
+                </TreeDndEnabledContext.Provider>
             )}
         </div>
     );

@@ -53,8 +53,13 @@ export default defineConfig({
                         },
                         {
                             name: "vendor-ui",
-                            test: /[\\/]node_modules[\\/](radix-ui|@radix-ui|lucide-react|class-variance-authority)[\\/]/,
+                            test: /[\\/]node_modules[\\/](radix-ui|@radix-ui|lucide-react|sonner|class-variance-authority)[\\/]/,
                             priority: 7,
+                        },
+                        {
+                            name: "vendor-dnd",
+                            test: /[\\/]node_modules[\\/](@dnd-kit|@preact[\\/]signals-core)[\\/]/,
+                            priority: 10,
                         },
                         {
                             name: "vendor-zod",
