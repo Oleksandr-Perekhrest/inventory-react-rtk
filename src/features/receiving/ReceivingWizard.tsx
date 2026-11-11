@@ -1,20 +1,26 @@
 // outsource dependencies
+import { useBlocker } from "@tanstack/react-router";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 
 // local dependencies
 import { formatUnit } from "@/domain";
 import { FormField } from "./FormField";
 import { toLocalIsoDate } from "@/lib/date";
+import { useDraftSync } from "./useDraftSync";
 import { Input } from "@/components/ui/input";
 import { getErrorMessage } from "@/api/errors";
-import { useAppSelector } from "@/store/hooks";
 import { Button } from "@/components/ui/button";
 import type { Supplier } from "@/domain/supplier";
 import { ProductCombobox } from "./ProductCombobox";
-import { selectReceivingDraft } from "./receivingDraftSlice";
 import { useGetSuppliersQuery } from "@/api/endpoints/suppliers";
 import { useReceivingForm, type ReceivingForm } from "./useReceivingForm";
 import { productsApi, useGetProductQuery } from "@/api/endpoints/products";
+import { useAppStore, useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+    draftDiscarded,
+    selectReceivingDraft,
+    selectHasReceivingDraft,
+} from "./receivingDraftSlice";
 import {
     Select,
     SelectItem,
@@ -31,6 +37,16 @@ import {
     type ReceivingStep,
     type ReceiptLineDraft,
 } from "@/domain/receiving";
+import {
+    AlertDialog,
+    AlertDialogTitle,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogContent,
+    AlertDialogDescription,
+} from "@/components/ui/alert-dialog";
 
 const STEP_LABELS: Record<ReceivingStep, string> = {
     document: "Document",
@@ -55,12 +71,16 @@ function nextIsoDay(isoDate: string): string {
 
 export function ReceivingWizard() {
     const persistedDraft = useAppSelector(selectReceivingDraft);
+    const hasDraft = useAppSelector(selectHasReceivingDraft);
+    const dispatch = useAppDispatch();
+    const store = useAppStore();
     const [initialDraft] = useState(
         () =>
             persistedDraft ??
             createEmptyDraft(toLocalIsoDate(new Date()), crypto.randomUUID()),
     );
     const [linesComplete, setLinesComplete] = useState(false);
+    const [discardOpen, setDiscardOpen] = useState(false);
 
     const suppliersQuery = useGetSuppliersQuery();
     const suppliers = suppliersQuery.data;
@@ -74,8 +94,9 @@ export function ReceivingWizard() {
     );
 
     const formRef = useRef<HTMLFormElement>(null);
+    const headingRef = useRef<HTMLHeadingElement>(null);
 
-    const form = useReceivingForm({
+    const { form, clearFailedSteps } = useReceivingForm({
         initialDraft,
         supplierExists,
         onComplete: () => setLinesComplete(true),
@@ -89,6 +110,55 @@ export function ReceivingWizard() {
             });
         },
     });
+
+    const draftSync = useDraftSync(form);
+
+    const blocker = useBlocker({
+        shouldBlockFn: () => {
+            draftSync.flush();
+            return selectHasReceivingDraft(store.getState());
+        },
+        withResolver: true,
+        enableBeforeUnload: false,
+    });
+
+    const handleDiscardConfirm = useCallback(() => {
+        draftSync.cancel();
+        dispatch(draftDiscarded());
+        form.reset(
+            createEmptyDraft(toLocalIsoDate(new Date()), crypto.randomUUID()),
+        );
+        clearFailedSteps();
+        setDiscardOpen(false);
+        setLinesComplete(false);
+        queueMicrotask(() => {
+            headingRef.current?.focus();
+        });
+    }, [draftSync, dispatch, form, clearFailedSteps]);
+
+    const handleBlockerOpenChange = useCallback(
+        (open: boolean) => {
+            if (!open && blocker.status === "blocked") {
+                blocker.reset();
+            }
+        },
+        [blocker],
+    );
+
+    const handleStay = useCallback(() => {
+        if (blocker.status === "blocked") blocker.reset();
+    }, [blocker]);
+
+    const handleDiscardAndLeave = useCallback(() => {
+        if (blocker.status === "blocked") {
+            dispatch(draftDiscarded());
+            blocker.proceed();
+        }
+    }, [blocker, dispatch]);
+
+    const handleKeepAndLeave = useCallback(() => {
+        if (blocker.status === "blocked") blocker.proceed();
+    }, [blocker]);
 
     // Reset the completion notice whenever form values change
     const prevValuesRef = useRef(form.state.values);
@@ -113,7 +183,24 @@ export function ReceivingWizard() {
 
     return (
         <div className="p-6">
-            <h1 className="mb-6 text-2xl font-semibold">Receiving</h1>
+            <div className="mb-6 flex items-center justify-between gap-4">
+                <h1
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-2xl font-semibold outline-none"
+                >
+                    Receiving
+                </h1>
+                {hasDraft && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setDiscardOpen(true)}
+                    >
+                        Discard draft
+                    </Button>
+                )}
+            </div>
             <form
                 ref={formRef}
                 onSubmit={handleFormSubmit}
@@ -201,6 +288,54 @@ export function ReceivingWizard() {
                     }}
                 </form.Subscribe>
             </form>
+
+            <AlertDialog
+                open={blocker.status === "blocked"}
+                onOpenChange={handleBlockerOpenChange}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Unfinished receipt</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You have an unfinished receipt. Its draft is saved
+                            on this device.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel autoFocus onClick={handleStay}>
+                            Stay
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={handleDiscardAndLeave}
+                        >
+                            Discard and leave
+                        </AlertDialogAction>
+                        <AlertDialogAction onClick={handleKeepAndLeave}>
+                            Keep draft and leave
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Discard this receipt draft?
+                        </AlertDialogTitle>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={handleDiscardConfirm}
+                        >
+                            Discard
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

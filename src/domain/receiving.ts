@@ -55,6 +55,18 @@ export function createEmptyDraft(today: string, lineId: string): ReceiptDraft {
     };
 }
 
+export function isDraftEmpty(draft: ReceiptDraft): boolean {
+    if (draft.document.supplierId.trim() !== "") return false;
+    if (draft.document.invoiceNumber.trim() !== "") return false;
+    for (const line of draft.lines) {
+        if (line.productId !== "") return false;
+        if (line.expectedQuantity !== null) return false;
+        if (line.batch !== "") return false;
+        if (line.expiryDate !== "") return false;
+    }
+    return true;
+}
+
 export function createDocumentStepSchema({
     supplierExists,
     today,

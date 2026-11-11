@@ -92,7 +92,7 @@ export function useReceivingForm({
             .data;
     }
 
-    return useForm({
+    const form = useForm({
         defaultValues: initialDraft,
         validators: {
             onChange: ({ value }) => {
@@ -116,6 +116,12 @@ export function useReceivingForm({
             onInvalid();
         },
     });
+
+    const clearFailedSteps = () => {
+        failedStepsRef.current.clear();
+    };
+
+    return { form, clearFailedSteps };
 }
 
-export type ReceivingForm = ReturnType<typeof useReceivingForm>;
+export type ReceivingForm = ReturnType<typeof useReceivingForm>["form"];
