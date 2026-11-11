@@ -43,7 +43,7 @@ export default defineConfig({
                         },
                         {
                             name: "vendor-router",
-                            test: /[\\/]node_modules[\\/]@tanstack[\\/]/,
+                            test: /[\\/]node_modules[\\/]@tanstack[\\/](react-router|router-core|history|react-store|store)[\\/]/,
                             priority: 9,
                         },
                         {
