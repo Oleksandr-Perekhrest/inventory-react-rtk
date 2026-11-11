@@ -37,11 +37,11 @@ export function createEmptyLine(id: string): ReceiptLineDraft {
     };
 }
 
-export function createEmptyDraft(today: string): ReceiptDraft {
+export function createEmptyDraft(today: string, lineId: string): ReceiptDraft {
     return {
         step: "document",
         document: { supplierId: "", invoiceNumber: "", date: today },
-        lines: [createEmptyLine(crypto.randomUUID())],
+        lines: [createEmptyLine(lineId)],
     };
 }
 
@@ -81,11 +81,9 @@ export function createLinesStepSchema({
             return;
         }
 
-        const seen = new Map<string, Array<{ index: number; batch: string }>>();
+        const seen = new Map<string, string[]>();
 
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-
+        for (const [i, line] of lines.entries()) {
             if (!line.productId) {
                 ctx.addIssue({
                     code: "custom",
@@ -112,29 +110,31 @@ export function createLinesStepSchema({
                 validateExpiryDate(line.expiryDate, documentDate, i, ctx);
             }
 
-            const prevEntries = seen.get(line.productId) ?? [];
-            if (prevEntries.length > 0) {
-                if (product.perishable) {
-                    const batch = line.batch.trim();
-                    if (prevEntries.some((e) => e.batch === batch)) {
+            const prevBatches = seen.get(line.productId) ?? [];
+            if (product.perishable) {
+                const batch = line.batch.trim();
+                if (batch) {
+                    if (prevBatches.includes(batch)) {
                         ctx.addIssue({
                             code: "custom",
                             path: [i, "productId"],
                             message: "Duplicate product and batch combination",
                         });
+                    } else {
+                        seen.set(line.productId, [...prevBatches, batch]);
                     }
-                } else {
+                }
+            } else {
+                if (prevBatches.length > 0) {
                     ctx.addIssue({
                         code: "custom",
                         path: [i, "productId"],
                         message: "This product is already in the list",
                     });
+                } else {
+                    seen.set(line.productId, [""]);
                 }
             }
-            seen.set(line.productId, [
-                ...prevEntries,
-                { index: i, batch: line.batch.trim() },
-            ]);
         }
     });
 }
@@ -178,8 +178,7 @@ function validateQuantity(
             });
         }
     } else {
-        const dot = String(qty).indexOf(".");
-        if (dot !== -1 && String(qty).length - dot - 1 > 3) {
+        if (Number(qty.toFixed(3)) !== qty) {
             ctx.addIssue({
                 code: "custom",
                 path: [i, "expectedQuantity"],
