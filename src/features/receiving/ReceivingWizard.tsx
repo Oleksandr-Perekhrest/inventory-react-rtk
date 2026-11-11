@@ -1,18 +1,22 @@
 // outsource dependencies
-import { useForm } from "@tanstack/react-form";
 import { useRef, useMemo, useState, useCallback } from "react";
-import type { ReactFormExtendedApi } from "@tanstack/react-form";
 
 // local dependencies
+import { FormField } from "./FormField";
 import { toLocalIsoDate } from "@/lib/date";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { getErrorMessage } from "@/api/errors";
 import { useAppSelector } from "@/store/hooks";
 import { Button } from "@/components/ui/button";
-import type { Supplier } from "../../domain/supplier";
+import type { Supplier } from "@/domain/supplier";
 import { selectReceivingDraft } from "./receivingDraftSlice";
 import { useGetSuppliersQuery } from "@/api/endpoints/suppliers";
+import { useReceivingForm, type ReceivingForm } from "./useReceivingForm";
+import {
+    RECEIVING_STEPS,
+    createEmptyDraft,
+    type ReceivingStep,
+} from "@/domain/receiving";
 import {
     Select,
     SelectItem,
@@ -20,84 +24,11 @@ import {
     SelectContent,
     SelectTrigger,
 } from "@/components/ui/select";
-import {
-    RECEIVING_STEPS,
-    createEmptyDraft,
-    type ReceiptDraft,
-    type ReceivingStep,
-    createDocumentStepSchema,
-} from "../../domain/receiving";
 
 const STEP_LABELS: Record<ReceivingStep, string> = {
     document: "Document",
     lines: "Lines",
 };
-
-type FieldErrors = Record<string, string>;
-type StepValidationResult = { fields: FieldErrors } | undefined;
-
-type StepValidator = (props: { value: ReceiptDraft }) => StepValidationResult;
-
-type StepValidatorWithContext = (props: {
-    value: ReceiptDraft;
-    formApi: { state: { submissionAttempts: number } };
-}) => StepValidationResult;
-
-type ReceivingFormApi = ReactFormExtendedApi<
-    ReceiptDraft,
-    undefined,
-    StepValidatorWithContext,
-    undefined,
-    undefined,
-    undefined,
-    StepValidator,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    never
->;
-
-function mapIssuesToFields(
-    issues: ReadonlyArray<{ path: PropertyKey[]; message: string }>,
-    prefix: string,
-): FieldErrors {
-    const errors: FieldErrors = {};
-    for (const issue of issues) {
-        const path = issue.path
-            .map((segment) =>
-                typeof segment === "number"
-                    ? `[${segment}]`
-                    : `.${String(segment)}`,
-            )
-            .join("")
-            .replace(/^\./, "");
-        const key = prefix + path;
-        if (!(key in errors)) {
-            errors[key] = issue.message;
-        }
-    }
-    return errors;
-}
-
-function validateCurrentStep(
-    value: ReceiptDraft,
-    supplierExists: (id: string) => boolean,
-): StepValidationResult {
-    if (value.step === "document") {
-        const schema = createDocumentStepSchema({
-            supplierExists,
-            today: toLocalIsoDate(new Date()),
-        });
-        const result = schema.safeParse(value.document);
-        if (!result.success) {
-            return {
-                fields: mapIssuesToFields(result.error.issues, "document."),
-            };
-        }
-    }
-    return undefined;
-}
 
 function nextStepOf(step: ReceivingStep): ReceivingStep | null {
     const index = RECEIVING_STEPS.indexOf(step);
@@ -118,7 +49,7 @@ function firstErrorText(errors: ReadonlyArray<unknown>): string | undefined {
 
 export function ReceivingWizard() {
     const persistedDraft = useAppSelector(selectReceivingDraft);
-    const [initialDraft] = useState<ReceiptDraft>(
+    const [initialDraft] = useState(
         () =>
             persistedDraft ??
             createEmptyDraft(toLocalIsoDate(new Date()), crypto.randomUUID()),
@@ -137,22 +68,10 @@ export function ReceivingWizard() {
 
     const formRef = useRef<HTMLFormElement>(null);
 
-    const form: ReceivingFormApi = useForm({
-        defaultValues: initialDraft,
-        validators: {
-            onChange: ({ value, formApi }) => {
-                if (formApi.state.submissionAttempts === 0) return undefined;
-                return validateCurrentStep(value, supplierExists);
-            },
-            onSubmit: ({ value }) => validateCurrentStep(value, supplierExists),
-        },
-        onSubmit: ({ value, formApi }) => {
-            const next = nextStepOf(value.step);
-            if (next) {
-                formApi.setFieldValue("step", next);
-            }
-        },
-        onSubmitInvalid: () => {
+    const form = useReceivingForm({
+        initialDraft,
+        supplierExists,
+        onInvalid: () => {
             queueMicrotask(() => {
                 const invalid = formRef.current?.querySelector<HTMLElement>(
                     '[aria-invalid="true"]',
@@ -211,6 +130,10 @@ export function ReceivingWizard() {
                     {({ step, isSubmitting }) => {
                         const back = previousStepOf(step);
                         const next = nextStepOf(step);
+                        const suppliersUnavailable =
+                            step === "document" &&
+                            (suppliersQuery.isLoading ||
+                                Boolean(suppliersQuery.error));
                         return (
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <Button
@@ -228,7 +151,9 @@ export function ReceivingWizard() {
                                 {next && (
                                     <Button
                                         type="submit"
-                                        disabled={isSubmitting}
+                                        disabled={
+                                            isSubmitting || suppliersUnavailable
+                                        }
                                     >
                                         Next
                                     </Button>
@@ -268,7 +193,7 @@ function StepIndicator({ currentStep }: { currentStep: ReceivingStep }) {
 }
 
 type DocumentStepProps = {
-    form: ReceivingFormApi;
+    form: ReceivingForm;
     suppliers: Supplier[] | undefined;
     suppliersLoading: boolean;
     suppliersError: ReturnType<typeof useGetSuppliersQuery>["error"];
@@ -282,126 +207,113 @@ function DocumentStep({
     suppliersError,
     refetchSuppliers,
 }: DocumentStepProps) {
-    const supplierErrorId = "receiving-supplier-error";
-    const invoiceErrorId = "receiving-invoice-error";
-    const dateErrorId = "receiving-date-error";
-
     return (
         <div className="flex flex-col gap-4 rounded-sm border border-border bg-card p-4">
             <form.Field name="document.supplierId">
                 {(field) => {
-                    const message = firstErrorText(field.state.meta.errors);
-                    const hasError = Boolean(message);
                     const isDisabled =
                         suppliersLoading || Boolean(suppliersError);
                     return (
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor={field.name}>Supplier</Label>
-                            <Select
-                                value={field.state.value || undefined}
-                                onValueChange={(v) => field.handleChange(v)}
-                                disabled={isDisabled}
-                            >
-                                <SelectTrigger
-                                    id={field.name}
-                                    aria-invalid={hasError || undefined}
-                                    aria-describedby={
-                                        hasError ? supplierErrorId : undefined
-                                    }
-                                    onBlur={field.handleBlur}
-                                    className="w-full"
-                                >
-                                    <SelectValue
-                                        placeholder={
-                                            suppliersLoading
-                                                ? "Loading suppliers..."
-                                                : suppliersError
-                                                  ? "Failed to load suppliers"
-                                                  : "Select a supplier"
+                        <FormField
+                            name={field.name}
+                            label="Supplier"
+                            error={firstErrorText(field.state.meta.errors)}
+                        >
+                            {(fieldProps) => (
+                                <>
+                                    <Select
+                                        value={field.state.value || undefined}
+                                        onValueChange={(v) =>
+                                            field.handleChange(v)
                                         }
-                                    />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {(suppliers ?? []).map((supplier) => (
-                                        <SelectItem
-                                            key={supplier.id}
-                                            value={supplier.id}
-                                        >
-                                            {supplier.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {suppliersError && (
-                                <div className="flex items-center gap-2 text-sm text-destructive">
-                                    <span>
-                                        {getErrorMessage(suppliersError)}
-                                    </span>
-                                    <Button
-                                        type="button"
-                                        size="xs"
-                                        variant="outline"
-                                        onClick={() => refetchSuppliers()}
+                                        disabled={isDisabled}
                                     >
-                                        Retry
-                                    </Button>
-                                </div>
+                                        <SelectTrigger
+                                            {...fieldProps}
+                                            onBlur={field.handleBlur}
+                                            className="w-full"
+                                        >
+                                            <SelectValue
+                                                placeholder={
+                                                    suppliersLoading
+                                                        ? "Loading suppliers..."
+                                                        : suppliersError
+                                                          ? "Failed to load suppliers"
+                                                          : "Select a supplier"
+                                                }
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {(suppliers ?? []).map(
+                                                (supplier) => (
+                                                    <SelectItem
+                                                        key={supplier.id}
+                                                        value={supplier.id}
+                                                    >
+                                                        {supplier.name}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    {suppliersError && (
+                                        <div className="flex items-center gap-2 text-sm text-destructive">
+                                            <span>
+                                                {getErrorMessage(
+                                                    suppliersError,
+                                                )}
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                size="xs"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    refetchSuppliers()
+                                                }
+                                            >
+                                                Retry
+                                            </Button>
+                                        </div>
+                                    )}
+                                </>
                             )}
-                            {hasError && (
-                                <p
-                                    id={supplierErrorId}
-                                    className="text-sm text-destructive"
-                                >
-                                    {message}
-                                </p>
-                            )}
-                        </div>
+                        </FormField>
                     );
                 }}
             </form.Field>
 
             <form.Field name="document.invoiceNumber">
-                {(field) => {
-                    const message = firstErrorText(field.state.meta.errors);
-                    const hasError = Boolean(message);
-                    return (
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor={field.name}>Invoice number</Label>
+                {(field) => (
+                    <FormField
+                        name={field.name}
+                        label="Invoice number"
+                        error={firstErrorText(field.state.meta.errors)}
+                    >
+                        {(fieldProps) => (
                             <Input
-                                id={field.name}
+                                {...fieldProps}
                                 name={field.name}
                                 value={field.state.value}
                                 onChange={(event) =>
                                     field.handleChange(event.target.value)
                                 }
                                 onBlur={field.handleBlur}
-                                aria-invalid={hasError || undefined}
-                                aria-describedby={
-                                    hasError ? invoiceErrorId : undefined
-                                }
                             />
-                            {hasError && (
-                                <p
-                                    id={invoiceErrorId}
-                                    className="text-sm text-destructive"
-                                >
-                                    {message}
-                                </p>
-                            )}
-                        </div>
-                    );
-                }}
+                        )}
+                    </FormField>
+                )}
             </form.Field>
 
             <form.Field name="document.date">
-                {(field) => {
-                    const message = firstErrorText(field.state.meta.errors);
-                    const hasError = Boolean(message);
-                    return (
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor={field.name}>Date</Label>
+                {(field) => (
+                    <FormField
+                        name={field.name}
+                        label="Date"
+                        error={firstErrorText(field.state.meta.errors)}
+                    >
+                        {(fieldProps) => (
                             <Input
-                                id={field.name}
+                                {...fieldProps}
                                 name={field.name}
                                 type="date"
                                 value={field.state.value}
@@ -409,22 +321,10 @@ function DocumentStep({
                                     field.handleChange(event.target.value)
                                 }
                                 onBlur={field.handleBlur}
-                                aria-invalid={hasError || undefined}
-                                aria-describedby={
-                                    hasError ? dateErrorId : undefined
-                                }
                             />
-                            {hasError && (
-                                <p
-                                    id={dateErrorId}
-                                    className="text-sm text-destructive"
-                                >
-                                    {message}
-                                </p>
-                            )}
-                        </div>
-                    );
-                }}
+                        )}
+                    </FormField>
+                )}
             </form.Field>
         </div>
     );
