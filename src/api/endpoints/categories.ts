@@ -40,6 +40,50 @@ const categoriesQueryApi = baseApi.injectEndpoints({
     }),
 });
 
+export function recomputeTotalsInCache(
+    draft: EntityState<CategoryWithCounts, Category["id"]>,
+): void {
+    const entities = Object.values(draft.entities).filter(
+        (e): e is CategoryWithCounts => e !== undefined,
+    );
+    const totals = computeTotalProductCounts(entities);
+    const updates = entities
+        .filter((e) => totals.get(e.id) !== e.totalProductCount)
+        .map((e) => ({
+            id: e.id,
+            changes: {
+                totalProductCount: totals.get(e.id) ?? e.totalProductCount,
+            },
+        }));
+    if (updates.length > 0) {
+        categoriesAdapter.updateMany(draft, updates);
+    }
+}
+
+export function adjustProductCountsInCache(
+    draft: EntityState<CategoryWithCounts, Category["id"]>,
+    {
+        fromCategoryId,
+        toCategoryId,
+    }: { fromCategoryId: string; toCategoryId: string },
+): void {
+    const from = draft.entities[fromCategoryId];
+    if (from !== undefined) {
+        categoriesAdapter.updateOne(draft, {
+            id: fromCategoryId,
+            changes: { productCount: Math.max(0, from.productCount - 1) },
+        });
+    }
+    const to = draft.entities[toCategoryId];
+    if (to !== undefined) {
+        categoriesAdapter.updateOne(draft, {
+            id: toCategoryId,
+            changes: { productCount: to.productCount + 1 },
+        });
+    }
+    recomputeTotalsInCache(draft);
+}
+
 function applyCategoryMoveToCache(
     draft: EntityState<CategoryWithCounts, Category["id"]>,
     input: MoveCategoryInput,
@@ -60,19 +104,7 @@ function applyCategoryMoveToCache(
         })),
     );
 
-    const updatedEntities = definedEntities();
-    const totals = computeTotalProductCounts(updatedEntities);
-    const totalUpdates = updatedEntities
-        .filter((e) => totals.get(e.id) !== e.totalProductCount)
-        .map((e) => ({
-            id: e.id,
-            changes: {
-                totalProductCount: totals.get(e.id) ?? e.totalProductCount,
-            },
-        }));
-    if (totalUpdates.length > 0) {
-        categoriesAdapter.updateMany(draft, totalUpdates);
-    }
+    recomputeTotalsInCache(draft);
 }
 
 const extendedApi = categoriesQueryApi.injectEndpoints({

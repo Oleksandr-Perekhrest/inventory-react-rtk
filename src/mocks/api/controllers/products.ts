@@ -4,9 +4,11 @@ import { notFound } from "../errors";
 import { paginate } from "../pagination";
 import type { Product } from "../../../domain";
 import type { Paginated } from "../../../api/types";
-import type { ListProductsQuery } from "../../../api/queries";
-import type { UpdateProductBody } from "../../../api/queries";
 import { buildChildrenMap, collectDescendantIds } from "../tree";
+import type {
+    ListProductsQuery,
+    UpdateProductBody,
+} from "../../../api/queries";
 
 export function listProducts({
     db,
