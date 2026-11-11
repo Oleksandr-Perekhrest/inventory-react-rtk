@@ -12,6 +12,13 @@ import { stockStatus, formatPrice, formatQuantity } from "./helpers";
 
 export const features = tableFeatures({ rowSortingFeature });
 
+export const RIGHT_ALIGNED_COLUMNS = new Set([
+    "quantity",
+    "minQuantity",
+    "price",
+]);
+export const WRAPPING_COLUMNS = new Set(["name"]);
+
 const columnHelper = createColumnHelper<typeof features, Product>();
 
 export const columns = columnHelper.columns([

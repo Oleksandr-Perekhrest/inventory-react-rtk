@@ -5,14 +5,11 @@ import type { Row } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
 
 // local dependencies
-import { features } from "./columns";
 import type { Product } from "@/domain";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { toProductDraggableId } from "@/features/category-tree/dnd";
-
-const RIGHT_ALIGN = new Set(["quantity", "minQuantity", "price"]);
-const WRAP_COLS = new Set(["name"]);
+import { features, WRAPPING_COLUMNS, RIGHT_ALIGNED_COLUMNS } from "./columns";
 
 type Props = { row: Row<typeof features, Product> };
 
@@ -40,8 +37,10 @@ export function DraggableProductRow({ row }: Props) {
                 <TableCell
                     key={cell.id}
                     className={cn(
-                        RIGHT_ALIGN.has(cell.column.id) && "text-right",
-                        WRAP_COLS.has(cell.column.id) && "whitespace-normal",
+                        RIGHT_ALIGNED_COLUMNS.has(cell.column.id) &&
+                            "text-right",
+                        WRAPPING_COLUMNS.has(cell.column.id) &&
+                            "whitespace-normal",
                     )}
                 >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

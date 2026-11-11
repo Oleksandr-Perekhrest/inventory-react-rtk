@@ -6,11 +6,11 @@ import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 // local dependencies
 import type { Product } from "@/domain";
-import { columns, features } from "./columns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DraggableProductRow } from "./DraggableProductRow";
 import { getErrorStatus, getErrorMessage } from "@/api/errors";
+import { columns, features, RIGHT_ALIGNED_COLUMNS } from "./columns";
 import type { CatalogSearch } from "@/features/catalog/catalogSearch";
 import {
     useCatalogSearch,
@@ -28,7 +28,6 @@ import {
 
 const HEADER_CLASS =
     "h-9 bg-muted px-3 font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";
-const RIGHT_ALIGN = new Set(["quantity", "minQuantity", "price"]);
 const EMPTY_PRODUCTS: Product[] = [];
 
 function isSortKey(id: string): id is CatalogSearch["sort"] {
@@ -136,7 +135,7 @@ export function ProductsTable() {
                                 {headerGroup.headers.map((header) => {
                                     const isSorted =
                                         header.column.getIsSorted();
-                                    const isRight = RIGHT_ALIGN.has(
+                                    const isRight = RIGHT_ALIGNED_COLUMNS.has(
                                         header.column.id,
                                     );
                                     const canSort = header.column.getCanSort();
@@ -208,8 +207,9 @@ export function ProductsTable() {
                                         <TableCell
                                             key={col.id}
                                             className={cn(
-                                                RIGHT_ALIGN.has(col.id) &&
-                                                    "text-right",
+                                                RIGHT_ALIGNED_COLUMNS.has(
+                                                    col.id,
+                                                ) && "text-right",
                                             )}
                                         >
                                             <Skeleton className="h-4 w-full rounded-sm" />
