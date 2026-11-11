@@ -36,3 +36,7 @@ export const ProductSchema = z
     });
 
 export type Product = z.infer<typeof ProductSchema>;
+
+export function formatUnit(unit: Unit): string {
+    return unit === "l" ? "L" : unit;
+}

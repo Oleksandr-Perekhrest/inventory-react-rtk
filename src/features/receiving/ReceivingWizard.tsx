@@ -1,7 +1,8 @@
 // outsource dependencies
-import { useRef, useMemo, useState, useCallback } from "react";
+import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 
 // local dependencies
+import { formatUnit } from "@/domain";
 import { FormField } from "./FormField";
 import { toLocalIsoDate } from "@/lib/date";
 import { Input } from "@/components/ui/input";
@@ -79,6 +80,7 @@ export function ReceivingWizard() {
         supplierExists,
         onComplete: () => setLinesComplete(true),
         onInvalid: () => {
+            setLinesComplete(false);
             queueMicrotask(() => {
                 const invalid = formRef.current?.querySelector<HTMLElement>(
                     '[aria-invalid="true"]',
@@ -87,6 +89,18 @@ export function ReceivingWizard() {
             });
         },
     });
+
+    // Reset the completion notice whenever form values change
+    const prevValuesRef = useRef(form.state.values);
+    useEffect(() => {
+        const sub = form.store.subscribe((state) => {
+            if (state.values !== prevValuesRef.current) {
+                prevValuesRef.current = state.values;
+                setLinesComplete(false);
+            }
+        });
+        return () => sub.unsubscribe();
+    }, [form.store]);
 
     const handleFormSubmit = useCallback(
         (event: React.FormEvent<HTMLFormElement>) => {
@@ -115,10 +129,11 @@ export function ReceivingWizard() {
                 <form.Subscribe
                     selector={(state) => ({
                         step: state.values.step,
+                        lines: state.values.lines,
                         documentDate: state.values.document.date,
                     })}
                 >
-                    {({ step: currentStep, documentDate }) =>
+                    {({ step: currentStep, documentDate, lines }) =>
                         currentStep === "document" ? (
                             <DocumentStep
                                 form={form}
@@ -131,6 +146,7 @@ export function ReceivingWizard() {
                             <LinesStep
                                 form={form}
                                 documentDate={documentDate}
+                                lines={lines}
                             />
                         )
                     }
@@ -359,7 +375,7 @@ function LineUnitSuffix({ productId }: { productId: string }) {
     if (!product) return null;
     return (
         <div className="flex h-8 shrink-0 items-center rounded-r-sm border border-l-0 border-input bg-muted px-2.5 font-mono text-sm text-muted-foreground">
-            {product.unit}
+            {formatUnit(product.unit)}
         </div>
     );
 }
@@ -370,6 +386,7 @@ type LineRowProps = {
     line: ReceiptLineDraft;
     totalLines: number;
     documentDate: string;
+    retryCount: number;
     productInputRef: (el: HTMLInputElement | null) => void;
     onRemove: () => void;
 };
@@ -380,13 +397,24 @@ function LineRow({
     line,
     totalLines,
     documentDate,
+    retryCount,
     productInputRef,
     onRemove,
 }: LineRowProps) {
-    const { data: product } = useGetProductQuery(line.productId, {
-        skip: !line.productId,
-    });
+    const {
+        data: product,
+        isError,
+        refetch,
+    } = useGetProductQuery(line.productId, { skip: !line.productId });
     const minExpiryDate = nextIsoDay(documentDate);
+
+    const lastRetryRef = useRef(0);
+    useEffect(() => {
+        if (retryCount > lastRetryRef.current) {
+            lastRetryRef.current = retryCount;
+            if (line.productId && isError) void refetch();
+        }
+    }, [retryCount, line.productId, isError, refetch]);
 
     return (
         <div className="flex flex-col gap-3 rounded-sm border border-border bg-card p-4">
@@ -535,30 +563,27 @@ function LinesSubmitButton({
     lines,
     linesComplete,
 }: LinesSubmitButtonProps) {
-    const anyProductPending = useAppSelector((rootState) =>
+    const anyProductNotReady = useAppSelector((rootState) =>
         lines.some((line) => {
             if (!line.productId) return false;
             return (
                 productsApi.endpoints.getProduct.select(line.productId)(
                     rootState,
-                ).status === "pending"
+                ).status !== "fulfilled"
             );
         }),
     );
 
     return (
         <>
-            <Button type="submit" disabled={isSubmitting || anyProductPending}>
+            <Button type="submit" disabled={isSubmitting || anyProductNotReady}>
                 Continue
             </Button>
-            {linesComplete && (
-                <p
-                    role="status"
-                    className="w-full text-sm text-muted-foreground"
-                >
-                    Lines are complete — reconciliation comes in the next stage.
-                </p>
-            )}
+            <p role="status" className="w-full text-sm text-muted-foreground">
+                {linesComplete
+                    ? "Lines are complete — reconciliation comes in the next stage."
+                    : ""}
+            </p>
         </>
     );
 }
@@ -566,11 +591,22 @@ function LinesSubmitButton({
 type LinesStepProps = {
     form: ReceivingForm;
     documentDate: string;
+    lines: ReceiptLineDraft[];
 };
 
-function LinesStep({ form, documentDate }: LinesStepProps) {
+function LinesStep({ form, documentDate, lines }: LinesStepProps) {
     const productInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
     const addLineButtonRef = useRef<HTMLButtonElement>(null);
+    const [retryCount, setRetryCount] = useState(0);
+
+    const anyRejected = useAppSelector((rootState) =>
+        lines.some(
+            (l) =>
+                l.productId &&
+                productsApi.endpoints.getProduct.select(l.productId)(rootState)
+                    .status === "rejected",
+        ),
+    );
 
     function handleAddLine() {
         const newLine = createEmptyLine(crypto.randomUUID());
@@ -580,12 +616,12 @@ function LinesStep({ form, documentDate }: LinesStepProps) {
         }, 0);
     }
 
-    function handleRemoveLine(i: number, lines: ReadonlyArray<{ id: string }>) {
-        const isLast = i === lines.length - 1;
+    function handleRemoveLine(i: number, lns: ReadonlyArray<{ id: string }>) {
+        const isLast = i === lns.length - 1;
         void form.removeFieldValue("lines", i);
         setTimeout(() => {
             if (!isLast) {
-                const nextLine = lines[i + 1];
+                const nextLine = lns[i + 1];
                 if (nextLine)
                     productInputRefs.current.get(nextLine.id)?.focus();
             } else {
@@ -607,6 +643,7 @@ function LinesStep({ form, documentDate }: LinesStepProps) {
                                 line={line}
                                 totalLines={arrayField.state.value.length}
                                 documentDate={documentDate}
+                                retryCount={retryCount}
                                 productInputRef={(el) => {
                                     if (el) {
                                         productInputRefs.current.set(
@@ -632,6 +669,20 @@ function LinesStep({ form, documentDate }: LinesStepProps) {
                     </>
                 )}
             </form.Field>
+
+            {anyRejected && (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                    <span>Some products could not be loaded.</span>
+                    <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        onClick={() => setRetryCount((c) => c + 1)}
+                    >
+                        Retry
+                    </Button>
+                </div>
+            )}
 
             <Button
                 ref={addLineButtonRef}

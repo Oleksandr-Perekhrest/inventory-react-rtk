@@ -4,9 +4,9 @@ import { useId, useRef, useState, useEffect } from "react";
 import type { Ref, ChangeEvent, KeyboardEvent } from "react";
 
 // local dependencies
-import type { Product } from "@/domain";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { formatUnit, type Product } from "@/domain";
 import {
     useGetProductQuery,
     useGetProductsQuery,
@@ -211,7 +211,7 @@ export function ProductCombobox({
                                         {product.sku}
                                     </span>
                                     <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                                        {product.unit}
+                                        {formatUnit(product.unit)}
                                     </span>
                                     {product.perishable && (
                                         <span className="shrink-0 rounded-sm bg-warning px-1.5 py-0.5 font-mono text-xs text-warning-foreground">
