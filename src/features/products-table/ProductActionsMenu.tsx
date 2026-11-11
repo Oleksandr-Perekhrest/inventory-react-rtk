@@ -1,5 +1,5 @@
 // outsource dependencies
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
 // local dependencies
@@ -25,22 +25,26 @@ export function ProductActionsMenu({ product }: Props) {
     const { data } = useGetCategoriesQuery(undefined);
     const { moveProduct } = useMoveCommands();
 
-    const options = data
-        ? buildMoveTargets(data, {
-              kind: "product",
-              categoryId: product.categoryId,
-          })
-        : [];
+    const options = useMemo(
+        () =>
+            dialogOpen && data
+                ? buildMoveTargets(data, {
+                      kind: "product",
+                      categoryId: product.categoryId,
+                  })
+                : [],
+        [dialogOpen, data, product.categoryId],
+    );
 
     return (
         <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
+                    {/* Distance(6) constraint in dnd-kit already prevents accidental drags from a click */}
                     <Button
                         variant="ghost"
                         size="icon"
                         aria-label={`Actions for ${product.name}`}
-                        onPointerDown={(e) => e.stopPropagation()}
                     >
                         <MoreHorizontal aria-hidden="true" className="size-4" />
                     </Button>

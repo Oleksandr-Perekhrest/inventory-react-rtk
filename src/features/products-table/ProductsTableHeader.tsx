@@ -1,5 +1,5 @@
 // outsource dependencies
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { X, MoreHorizontal } from "lucide-react";
 
 // local dependencies
@@ -52,10 +52,13 @@ export function ProductsTableHeader() {
             ? (categoryName ?? "Unknown category")
             : "All products";
 
-    const options =
-        data !== undefined && categoryId !== undefined && categoryExists
-            ? buildMoveTargets(data, { kind: "category", categoryId })
-            : [];
+    const options = useMemo(
+        () =>
+            dialogOpen && data !== undefined && categoryId !== undefined
+                ? buildMoveTargets(data, { kind: "category", categoryId })
+                : [],
+        [dialogOpen, data, categoryId],
+    );
 
     return (
         <div className="flex items-center gap-2">
