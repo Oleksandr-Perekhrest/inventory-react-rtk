@@ -37,6 +37,16 @@ export function createEmptyLine(id: string): ReceiptLineDraft {
     };
 }
 
+export function getNextStep(step: ReceivingStep): ReceivingStep | null {
+    const index = RECEIVING_STEPS.indexOf(step);
+    return RECEIVING_STEPS[index + 1] ?? null;
+}
+
+export function getPreviousStep(step: ReceivingStep): ReceivingStep | null {
+    const index = RECEIVING_STEPS.indexOf(step);
+    return index > 0 ? (RECEIVING_STEPS[index - 1] ?? null) : null;
+}
+
 export function createEmptyDraft(today: string, lineId: string): ReceiptDraft {
     return {
         step: "document",

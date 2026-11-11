@@ -9,14 +9,11 @@ import { getErrorMessage } from "@/api/errors";
 import { useAppSelector } from "@/store/hooks";
 import { Button } from "@/components/ui/button";
 import type { Supplier } from "@/domain/supplier";
+import { ProductCombobox } from "./ProductCombobox";
 import { selectReceivingDraft } from "./receivingDraftSlice";
+import { useGetProductQuery } from "@/api/endpoints/products";
 import { useGetSuppliersQuery } from "@/api/endpoints/suppliers";
 import { useReceivingForm, type ReceivingForm } from "./useReceivingForm";
-import {
-    RECEIVING_STEPS,
-    createEmptyDraft,
-    type ReceivingStep,
-} from "@/domain/receiving";
 import {
     Select,
     SelectItem,
@@ -24,21 +21,19 @@ import {
     SelectContent,
     SelectTrigger,
 } from "@/components/ui/select";
+import {
+    getNextStep,
+    createEmptyLine,
+    getPreviousStep,
+    RECEIVING_STEPS,
+    createEmptyDraft,
+    type ReceivingStep,
+} from "@/domain/receiving";
 
 const STEP_LABELS: Record<ReceivingStep, string> = {
     document: "Document",
     lines: "Lines",
 };
-
-function nextStepOf(step: ReceivingStep): ReceivingStep | null {
-    const index = RECEIVING_STEPS.indexOf(step);
-    return RECEIVING_STEPS[index + 1] ?? null;
-}
-
-function previousStepOf(step: ReceivingStep): ReceivingStep | null {
-    const index = RECEIVING_STEPS.indexOf(step);
-    return index > 0 ? (RECEIVING_STEPS[index - 1] ?? null) : null;
-}
 
 function firstErrorText(errors: ReadonlyArray<unknown>): string | undefined {
     for (const error of errors) {
@@ -116,7 +111,7 @@ export function ReceivingWizard() {
                                 refetchSuppliers={suppliersQuery.refetch}
                             />
                         ) : (
-                            <LinesStep />
+                            <LinesStep form={form} />
                         )
                     }
                 </form.Subscribe>
@@ -128,8 +123,8 @@ export function ReceivingWizard() {
                     })}
                 >
                     {({ step, isSubmitting }) => {
-                        const back = previousStepOf(step);
-                        const next = nextStepOf(step);
+                        const back = getPreviousStep(step);
+                        const next = getNextStep(step);
                         const suppliersUnavailable =
                             step === "document" &&
                             (suppliersQuery.isLoading ||
@@ -330,10 +325,174 @@ function DocumentStep({
     );
 }
 
-function LinesStep() {
+function LineUnitSuffix({ productId }: { productId: string }) {
+    const { data: product } = useGetProductQuery(productId, {
+        skip: !productId,
+    });
+    if (!product) return null;
     return (
-        <div className="rounded-sm border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
-            Lines step — coming next
+        <div className="flex h-8 shrink-0 items-center rounded-r-sm border border-l-0 border-input bg-muted px-2.5 font-mono text-sm text-muted-foreground">
+            {product.unit}
+        </div>
+    );
+}
+
+function LinesStep({ form }: { form: ReceivingForm }) {
+    const productInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+    const addLineButtonRef = useRef<HTMLButtonElement>(null);
+
+    function handleAddLine() {
+        const newLine = createEmptyLine(crypto.randomUUID());
+        form.pushFieldValue("lines", newLine);
+        setTimeout(() => {
+            productInputRefs.current.get(newLine.id)?.focus();
+        }, 0);
+    }
+
+    function handleRemoveLine(i: number, lines: ReadonlyArray<{ id: string }>) {
+        const isLast = i === lines.length - 1;
+        void form.removeFieldValue("lines", i);
+        setTimeout(() => {
+            if (!isLast) {
+                const nextLine = lines[i + 1];
+                if (nextLine)
+                    productInputRefs.current.get(nextLine.id)?.focus();
+            } else {
+                addLineButtonRef.current?.focus();
+            }
+        }, 0);
+    }
+
+    return (
+        <div className="flex flex-col gap-3">
+            <form.Field name="lines" mode="array">
+                {(arrayField) => (
+                    <>
+                        {arrayField.state.value.map((line, i) => (
+                            <div
+                                key={line.id}
+                                className="flex flex-col gap-3 rounded-sm border border-border bg-card p-4 lg:grid lg:grid-cols-[1fr_200px_32px] lg:items-end lg:gap-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0"
+                            >
+                                <form.Field name={`lines[${i}].productId`}>
+                                    {(field) => (
+                                        <FormField
+                                            name={field.name}
+                                            label="Product"
+                                            error={firstErrorText(
+                                                field.state.meta.errors,
+                                            )}
+                                        >
+                                            {(fieldProps) => (
+                                                <ProductCombobox
+                                                    ref={(el) => {
+                                                        if (el) {
+                                                            productInputRefs.current.set(
+                                                                line.id,
+                                                                el,
+                                                            );
+                                                        } else {
+                                                            productInputRefs.current.delete(
+                                                                line.id,
+                                                            );
+                                                        }
+                                                    }}
+                                                    {...fieldProps}
+                                                    value={field.state.value}
+                                                    onChange={(productId) =>
+                                                        field.handleChange(
+                                                            productId,
+                                                        )
+                                                    }
+                                                    onBlur={field.handleBlur}
+                                                />
+                                            )}
+                                        </FormField>
+                                    )}
+                                </form.Field>
+
+                                <form.Field
+                                    name={`lines[${i}].expectedQuantity`}
+                                >
+                                    {(field) => (
+                                        <FormField
+                                            name={field.name}
+                                            label="Expected quantity"
+                                            error={firstErrorText(
+                                                field.state.meta.errors,
+                                            )}
+                                        >
+                                            {(fieldProps) => (
+                                                <div className="flex">
+                                                    <Input
+                                                        {...fieldProps}
+                                                        type="number"
+                                                        inputMode="decimal"
+                                                        step="any"
+                                                        className="rounded-r-none border-r-0"
+                                                        value={
+                                                            field.state.value ??
+                                                            ""
+                                                        }
+                                                        onChange={(e) => {
+                                                            const raw =
+                                                                parseFloat(
+                                                                    e.target
+                                                                        .value,
+                                                                );
+                                                            field.handleChange(
+                                                                isNaN(raw)
+                                                                    ? null
+                                                                    : raw,
+                                                            );
+                                                        }}
+                                                        onBlur={
+                                                            field.handleBlur
+                                                        }
+                                                    />
+                                                    <LineUnitSuffix
+                                                        productId={
+                                                            line.productId
+                                                        }
+                                                    />
+                                                </div>
+                                            )}
+                                        </FormField>
+                                    )}
+                                </form.Field>
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    aria-label={`Remove line ${i + 1}`}
+                                    disabled={
+                                        arrayField.state.value.length <= 1
+                                    }
+                                    onClick={() =>
+                                        handleRemoveLine(
+                                            i,
+                                            arrayField.state.value,
+                                        )
+                                    }
+                                    className="mt-auto self-end"
+                                >
+                                    ×
+                                </Button>
+                            </div>
+                        ))}
+                    </>
+                )}
+            </form.Field>
+
+            <Button
+                ref={addLineButtonRef}
+                type="button"
+                variant="outline"
+                className="self-start"
+                onClick={handleAddLine}
+            >
+                Add line
+            </Button>
         </div>
     );
 }

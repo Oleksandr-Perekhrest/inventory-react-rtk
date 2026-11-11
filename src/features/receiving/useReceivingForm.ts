@@ -5,7 +5,7 @@ import { useForm } from "@tanstack/react-form";
 // local dependencies
 import { toLocalIsoDate } from "@/lib/date";
 import {
-    RECEIVING_STEPS,
+    getNextStep,
     type ReceiptDraft,
     type ReceivingStep,
     createDocumentStepSchema,
@@ -67,30 +67,26 @@ export function useReceivingForm({
     onInvalid,
 }: UseReceivingFormOptions) {
     const failedStepsRef = useRef<Set<ReceivingStep>>(new Set());
-    const currentStepRef = useRef<ReceivingStep>(initialDraft.step);
 
     return useForm({
         defaultValues: initialDraft,
         validators: {
             onChange: ({ value }) => {
-                currentStepRef.current = value.step;
                 if (!failedStepsRef.current.has(value.step)) return undefined;
                 return validateCurrentStep(value, supplierExists);
             },
             onSubmit: ({ value }) => {
-                currentStepRef.current = value.step;
                 return validateCurrentStep(value, supplierExists);
             },
         },
         onSubmit: ({ value, formApi }) => {
-            const index = RECEIVING_STEPS.indexOf(value.step);
-            const next = RECEIVING_STEPS[index + 1] ?? null;
+            const next = getNextStep(value.step);
             if (next) {
                 formApi.setFieldValue("step", next);
             }
         },
-        onSubmitInvalid: () => {
-            failedStepsRef.current.add(currentStepRef.current);
+        onSubmitInvalid: ({ value }) => {
+            failedStepsRef.current.add(value.step);
             onInvalid();
         },
     });
