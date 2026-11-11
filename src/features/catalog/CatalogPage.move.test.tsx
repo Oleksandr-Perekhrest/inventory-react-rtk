@@ -156,6 +156,63 @@ describe("Product move with category filter — row removed (T11)", () => {
     });
 });
 
+describe("Product move to subcategory stays visible (T13)", () => {
+    it("13 — moving a product into a sibling subcategory of the selected parent keeps the row visible and returns focus to the trigger", async () => {
+        const user = userEvent.setup();
+
+        // Find alphabetically first product in cat-bread (a child of cat-bakery)
+        const breadProducts = [...db.products]
+            .filter((p) => p.categoryId === "cat-bread")
+            .sort((a, b) => a.name.localeCompare(b.name));
+        const product = breadProducts[0];
+        if (!product) throw new Error("No products in cat-bread");
+
+        const targetCategory = db.categories.find((c) => c.id === "cat-pastry");
+        if (!targetCategory) throw new Error("cat-pastry not in seed");
+
+        // Open catalog filtered to cat-bakery; both bread and pastry are descendants
+        await renderWithRouter("/catalog?categoryId=cat-bakery");
+
+        const actionsButton = await screen.findByRole("button", {
+            name: `Actions for ${product.name}`,
+        });
+
+        actionsButton.focus();
+        await user.keyboard("{Enter}");
+
+        await screen.findByRole("menuitem", { name: "Move to category…" });
+        await user.keyboard("{Enter}");
+
+        const combobox = await screen.findByRole("combobox");
+        await user.type(combobox, "past");
+        await user.keyboard("{Enter}");
+
+        await waitFor(() => {
+            expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        });
+
+        await screen.findByText(
+            `Moved "${product.name}" to "${targetCategory.name}"`,
+        );
+
+        // Row stays — pastry is still under bakery (includeDescendants: true)
+        expect(
+            screen.getByRole("button", {
+                name: `Actions for ${product.name}`,
+            }),
+        ).toBeInTheDocument();
+
+        // Focus returns to the trigger, not the heading
+        await waitFor(() => {
+            expect(
+                screen.getByRole("button", {
+                    name: `Actions for ${product.name}`,
+                }),
+            ).toHaveFocus();
+        });
+    });
+});
+
 describe("Category move via header button (T12)", () => {
     it("12 — after moving a category via the header '⋯' dialog, focus returns to that trigger button", async () => {
         const user = userEvent.setup();

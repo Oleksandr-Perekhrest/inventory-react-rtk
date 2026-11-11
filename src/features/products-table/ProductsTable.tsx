@@ -12,12 +12,16 @@ import { ProductMoveContext } from "./ProductMoveContext";
 import { DraggableProductRow } from "./DraggableProductRow";
 import { PRODUCTS_HEADING_ID } from "./ProductsTableHeader";
 import { getErrorStatus, getErrorMessage } from "@/api/errors";
+import { matchesCategoryFilter } from "@/api/productSelection";
 import { useMoveCommands } from "@/features/catalog/moveCommands";
 import { useGetCategoriesQuery } from "@/api/endpoints/categories";
 import { columns, features, RIGHT_ALIGNED_COLUMNS } from "./columns";
-import type { CatalogSearch } from "@/features/catalog/catalogSearch";
 import { buildMoveTargets } from "@/features/category-tree/moveTargets";
 import { MoveToCategoryDialog } from "@/features/category-tree/MoveToCategoryDialog";
+import {
+    toProductsParams,
+    type CatalogSearch,
+} from "@/features/catalog/catalogSearch";
 import {
     useCatalogSearch,
     useSelectCategory,
@@ -73,11 +77,15 @@ export function ProductsTable() {
     function getReturnFocusTarget(): HTMLElement | null {
         const trigger = moveTriggerRef.current;
         if (trigger && trigger.isConnected) {
-            const willLeaveView =
-                search.categoryId !== undefined &&
-                moveTargetCategoryRef.current !== null &&
-                moveTargetCategoryRef.current !== search.categoryId;
-            if (!willLeaveView) return trigger;
+            const targetId = moveTargetCategoryRef.current;
+            if (targetId === null || categoriesData === undefined)
+                return trigger;
+            const staysInView = matchesCategoryFilter(
+                targetId,
+                toProductsParams(search),
+                categoriesData,
+            );
+            if (staysInView) return trigger;
         }
         return document.getElementById(PRODUCTS_HEADING_ID);
     }
