@@ -56,20 +56,20 @@ function TreeNodeInner({ id, level }: Props) {
     const { query, visible } = useTreeSearch();
     const onSelect = useTreeSelect();
     const isSearchActive = query !== "";
-    const dndEnabled = useTreeDndEnabled();
+    const { canDragCategories, canDrop } = useTreeDndEnabled();
 
     const { ref: draggableRef, isDragSource } = useDraggable({
         id: toCategoryDraggableId(id),
         type: "category",
         data: { categoryId: id },
-        disabled: !dndEnabled,
+        disabled: !canDragCategories,
     });
     const { ref: droppableRef } = useDroppable({
         id: toCategoryDroppableId(id),
         type: "category",
-        accept: "category",
+        accept: ["category", "product"],
         data: { categoryId: id },
-        disabled: !dndEnabled,
+        disabled: !canDrop,
     });
     const rowRef = useCallback(
         (el: Element | null) => {

@@ -2,7 +2,7 @@
 import type { EntityState } from "@reduxjs/toolkit";
 
 // local dependencies
-import type { Category } from "@/domain";
+import type { Product, Category } from "@/domain";
 import { ROOT, buildChildrenIndex } from "./tree";
 import type { CategoryWithCounts } from "@/api/types";
 import { moveCategory, type MoveCategoryInput } from "@/domain/category-move";
@@ -10,6 +10,34 @@ import { moveCategory, type MoveCategoryInput } from "@/domain/category-move";
 export type DropZone = "before" | "inside" | "after";
 
 export type CategoryDndData = { categoryId: Category["id"] };
+
+export type ProductDndData = {
+    productId: Product["id"];
+    categoryId: Category["id"];
+    name: string;
+};
+
+export function toProductDraggableId(productId: Product["id"]): string {
+    return `product:${productId}`;
+}
+
+export function isProductDndData(data: unknown): data is ProductDndData {
+    if (typeof data !== "object" || data === null) return false;
+    if (!("productId" in data) || typeof data.productId !== "string")
+        return false;
+    if (!("categoryId" in data) || typeof data.categoryId !== "string")
+        return false;
+    if (!("name" in data) || typeof data.name !== "string") return false;
+    return true;
+}
+
+export function resolveProductDrop(
+    product: { productId: Product["id"]; categoryId: Category["id"] },
+    targetCategoryId: Category["id"],
+): { id: Product["id"]; categoryId: Category["id"] } | null {
+    if (product.categoryId === targetCategoryId) return null;
+    return { id: product.productId, categoryId: targetCategoryId };
+}
 
 export function toCategoryDraggableId(categoryId: Category["id"]): string {
     return `category:${categoryId}`;

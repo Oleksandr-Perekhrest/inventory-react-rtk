@@ -29,8 +29,19 @@ export function useTreeSelect(): (id: string) => void {
     return useContext(TreeSelectContext);
 }
 
-export const TreeDndEnabledContext = createContext<boolean>(false);
+export type TreeDndEnabled = {
+    canDragCategories: boolean;
+    canDrop: boolean;
+};
 
-export function useTreeDndEnabled(): boolean {
+const TREE_DND_DISABLED: TreeDndEnabled = {
+    canDragCategories: false,
+    canDrop: false,
+};
+
+export const TreeDndEnabledContext =
+    createContext<TreeDndEnabled>(TREE_DND_DISABLED);
+
+export function useTreeDndEnabled(): TreeDndEnabled {
     return useContext(TreeDndEnabledContext);
 }

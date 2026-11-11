@@ -56,6 +56,13 @@ export function CategoryTree({
         return [...collectAncestors(data, new Set([selectedId]))].join(",");
     }, [data, selectedId]);
     const expanded = useAppSelector((state) => state.categoryTree.expanded);
+    const dndValue = useMemo(
+        () => ({
+            canDragCategories: variant === "panel" && !isSearchActive,
+            canDrop: variant === "panel",
+        }),
+        [variant, isSearchActive],
+    );
     const treeRef = useRef<HTMLUListElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const dataRef = useRef(data);
@@ -250,9 +257,7 @@ export function CategoryTree({
                 </div>
             )}
             {data && (
-                <TreeDndEnabledContext.Provider
-                    value={variant === "panel" && !isSearchActive}
-                >
+                <TreeDndEnabledContext.Provider value={dndValue}>
                     <TreeSelectContext.Provider value={handleSelect}>
                         <TreeSearchContext.Provider value={searchContext}>
                             {isSearchActive &&

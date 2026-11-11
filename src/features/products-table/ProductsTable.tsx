@@ -9,6 +9,7 @@ import type { Product } from "@/domain";
 import { columns, features } from "./columns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DraggableProductRow } from "./DraggableProductRow";
 import { getErrorStatus, getErrorMessage } from "@/api/errors";
 import type { CatalogSearch } from "@/features/catalog/catalogSearch";
 import {
@@ -28,7 +29,6 @@ import {
 const HEADER_CLASS =
     "h-9 bg-muted px-3 font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";
 const RIGHT_ALIGN = new Set(["quantity", "minQuantity", "price"]);
-const WRAP_COLS = new Set(["name"]);
 const EMPTY_PRODUCTS: Product[] = [];
 
 function isSortKey(id: string): id is CatalogSearch["sort"] {
@@ -249,24 +249,14 @@ export function ProductsTable() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow key={row.id}>
-                                    {row.getAllCells().map((cell) => (
-                                        <TableCell
-                                            key={cell.id}
-                                            className={cn(
-                                                RIGHT_ALIGN.has(
-                                                    cell.column.id,
-                                                ) && "text-right",
-                                                WRAP_COLS.has(cell.column.id) &&
-                                                    "whitespace-normal",
-                                            )}
-                                        >
-                                            <table.FlexRender cell={cell} />
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
+                            table
+                                .getRowModel()
+                                .rows.map((row) => (
+                                    <DraggableProductRow
+                                        key={row.id}
+                                        row={row}
+                                    />
+                                ))
                         )}
                     </TableBody>
                 </Table>

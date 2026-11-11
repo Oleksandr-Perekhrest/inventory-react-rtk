@@ -16,6 +16,7 @@ import {
 
 // local dependencies
 import type { RootState } from "@/store/store";
+import { productsApi } from "@/api/endpoints/products";
 import { categoriesApi } from "@/api/endpoints/categories";
 import { useAppStore, useAppDispatch } from "@/store/hooks";
 import { isApiErrorData, getErrorMessage } from "@/api/errors";
@@ -25,7 +26,9 @@ import {
 } from "@/features/category-tree/categoryTreeSlice";
 import {
     getDropZone,
+    isProductDndData,
     isCategoryDndData,
+    resolveProductDrop,
     resolveCategoryDrop,
     describeCategoryMove,
 } from "@/features/category-tree/dnd";
@@ -55,7 +58,10 @@ const sensors = [
     }),
 ];
 
-function computeDrop(operation: DragMoveEvent["operation"], state: RootState) {
+function computeCategoryDrop(
+    operation: DragMoveEvent["operation"],
+    state: RootState,
+) {
     const { source, target, position } = operation;
     if (!source || !target) return null;
 
@@ -87,20 +93,51 @@ function computeDrop(operation: DragMoveEvent["operation"], state: RootState) {
         : null;
 }
 
+function computeProductDrop(operation: DragMoveEvent["operation"]) {
+    const { source, target } = operation;
+    if (!source || !target) return null;
+
+    const sourceData = source.data;
+    const targetData = target.data;
+    if (!isProductDndData(sourceData) || !isCategoryDndData(targetData)) {
+        return null;
+    }
+
+    const resolved = resolveProductDrop(sourceData, targetData.categoryId);
+    return resolved
+        ? { resolved, targetId: targetData.categoryId, name: sourceData.name }
+        : null;
+}
+
 export function CatalogDndProvider({ children }: { children: ReactNode }) {
     const dispatch = useAppDispatch();
     const store = useAppStore();
 
     const handleDragMove = useCallback(
         (event: DragMoveEvent) => {
-            const result = computeDrop(event.operation, store.getState());
-            dispatch(
-                setDropIndicator(
-                    result
-                        ? { targetId: result.targetId, zone: result.zone }
-                        : null,
-                ),
-            );
+            const source = event.operation.source;
+            if (source?.type === "product") {
+                const result = computeProductDrop(event.operation);
+                dispatch(
+                    setDropIndicator(
+                        result
+                            ? { targetId: result.targetId, zone: "inside" }
+                            : null,
+                    ),
+                );
+            } else {
+                const result = computeCategoryDrop(
+                    event.operation,
+                    store.getState(),
+                );
+                dispatch(
+                    setDropIndicator(
+                        result
+                            ? { targetId: result.targetId, zone: result.zone }
+                            : null,
+                    ),
+                );
+            }
         },
         [dispatch, store],
     );
@@ -109,35 +146,73 @@ export function CatalogDndProvider({ children }: { children: ReactNode }) {
         async (event: DragEndEvent) => {
             dispatch(setDropIndicator(null));
             if (event.canceled || !event.operation.target) return;
-            const result = computeDrop(event.operation, store.getState());
-            if (!result) return;
 
-            const categories = categoriesApi.endpoints.getCategories.select()(
-                store.getState(),
-            ).data;
-            const { name, destination } = describeCategoryMove(
-                categories,
-                result.resolved,
-            );
+            const source = event.operation.source;
+            if (!source) return;
 
-            if (result.resolved.parentId === result.targetId) {
-                dispatch(expandMany([result.targetId]));
-            }
+            if (source.type === "product") {
+                const result = computeProductDrop(event.operation);
+                if (!result) return;
 
-            try {
-                await dispatch(
-                    categoriesApi.endpoints.moveCategory.initiate(
-                        result.resolved,
-                    ),
-                ).unwrap();
-                toast.success(`Moved "${name}" to ${destination}`, {
-                    duration: 3000,
-                });
-            } catch (error) {
-                toast.error(`Couldn't move "${name}"`, {
-                    description: `Changes were reverted. ${getErrorMessage(isApiErrorData(error) ? error : undefined)}`,
-                    duration: 6000,
-                });
+                const categories =
+                    categoriesApi.endpoints.getCategories.select()(
+                        store.getState(),
+                    ).data;
+                const categoryName =
+                    categories?.entities[result.targetId]?.name ??
+                    result.targetId;
+
+                try {
+                    await dispatch(
+                        productsApi.endpoints.updateProduct.initiate(
+                            result.resolved,
+                        ),
+                    ).unwrap();
+                    toast.success(
+                        `Moved "${result.name}" to "${categoryName}"`,
+                        { duration: 3000 },
+                    );
+                } catch (error) {
+                    toast.error(`Couldn't move "${result.name}"`, {
+                        description: `Changes were reverted. ${getErrorMessage(isApiErrorData(error) ? error : undefined)}`,
+                        duration: 6000,
+                    });
+                }
+            } else {
+                const result = computeCategoryDrop(
+                    event.operation,
+                    store.getState(),
+                );
+                if (!result) return;
+
+                const categories =
+                    categoriesApi.endpoints.getCategories.select()(
+                        store.getState(),
+                    ).data;
+                const { name, destination } = describeCategoryMove(
+                    categories,
+                    result.resolved,
+                );
+
+                if (result.resolved.parentId === result.targetId) {
+                    dispatch(expandMany([result.targetId]));
+                }
+
+                try {
+                    await dispatch(
+                        categoriesApi.endpoints.moveCategory.initiate(
+                            result.resolved,
+                        ),
+                    ).unwrap();
+                    toast.success(`Moved "${name}" to ${destination}`, {
+                        duration: 3000,
+                    });
+                } catch (error) {
+                    toast.error(`Couldn't move "${name}"`, {
+                        description: `Changes were reverted. ${getErrorMessage(isApiErrorData(error) ? error : undefined)}`,
+                        duration: 6000,
+                    });
+                }
             }
         },
         [dispatch, store],
@@ -154,15 +229,25 @@ export function CatalogDndProvider({ children }: { children: ReactNode }) {
             <DragOverlay dropAnimation={null}>
                 {(source) => {
                     const data = source.data;
-                    if (!isCategoryDndData(data)) return null;
-                    const name = categoriesApi.endpoints.getCategories.select()(
-                        store.getState(),
-                    ).data?.entities[data.categoryId]?.name;
-                    return name ? (
-                        <div className="flex h-8 items-center rounded-sm border bg-card px-2 text-sm font-sans shadow-md">
-                            {name}
-                        </div>
-                    ) : null;
+                    if (isProductDndData(data)) {
+                        return (
+                            <div className="flex h-8 items-center rounded-sm border bg-card px-2 text-sm font-sans shadow-md">
+                                {data.name}
+                            </div>
+                        );
+                    }
+                    if (isCategoryDndData(data)) {
+                        const name =
+                            categoriesApi.endpoints.getCategories.select()(
+                                store.getState(),
+                            ).data?.entities[data.categoryId]?.name;
+                        return name ? (
+                            <div className="flex h-8 items-center rounded-sm border bg-card px-2 text-sm font-sans shadow-md">
+                                {name}
+                            </div>
+                        ) : null;
+                    }
+                    return null;
                 }}
             </DragOverlay>
         </DragDropProvider>
