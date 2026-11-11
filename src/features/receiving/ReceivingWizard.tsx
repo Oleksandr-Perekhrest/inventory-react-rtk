@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
 import type { Supplier } from "@/domain/supplier";
 import { ProductCombobox } from "./ProductCombobox";
 import { selectReceivingDraft } from "./receivingDraftSlice";
-import { useGetProductQuery } from "@/api/endpoints/products";
 import { useGetSuppliersQuery } from "@/api/endpoints/suppliers";
 import { useReceivingForm, type ReceivingForm } from "./useReceivingForm";
+import { productsApi, useGetProductQuery } from "@/api/endpoints/products";
 import {
     Select,
     SelectItem,
@@ -28,6 +28,7 @@ import {
     RECEIVING_STEPS,
     createEmptyDraft,
     type ReceivingStep,
+    type ReceiptLineDraft,
 } from "@/domain/receiving";
 
 const STEP_LABELS: Record<ReceivingStep, string> = {
@@ -42,6 +43,15 @@ function firstErrorText(errors: ReadonlyArray<unknown>): string | undefined {
     return undefined;
 }
 
+function nextIsoDay(isoDate: string): string {
+    const parts = isoDate.split("-");
+    const y = parts[0];
+    const m = parts[1];
+    const d = parts[2];
+    if (!y || !m || !d) return "";
+    return toLocalIsoDate(new Date(Number(y), Number(m) - 1, Number(d) + 1));
+}
+
 export function ReceivingWizard() {
     const persistedDraft = useAppSelector(selectReceivingDraft);
     const [initialDraft] = useState(
@@ -49,6 +59,7 @@ export function ReceivingWizard() {
             persistedDraft ??
             createEmptyDraft(toLocalIsoDate(new Date()), crypto.randomUUID()),
     );
+    const [linesComplete, setLinesComplete] = useState(false);
 
     const suppliersQuery = useGetSuppliersQuery();
     const suppliers = suppliersQuery.data;
@@ -66,6 +77,7 @@ export function ReceivingWizard() {
     const form = useReceivingForm({
         initialDraft,
         supplierExists,
+        onComplete: () => setLinesComplete(true),
         onInvalid: () => {
             queueMicrotask(() => {
                 const invalid = formRef.current?.querySelector<HTMLElement>(
@@ -100,8 +112,13 @@ export function ReceivingWizard() {
                     )}
                 </form.Subscribe>
 
-                <form.Subscribe selector={(state) => state.values.step}>
-                    {(currentStep) =>
+                <form.Subscribe
+                    selector={(state) => ({
+                        step: state.values.step,
+                        documentDate: state.values.document.date,
+                    })}
+                >
+                    {({ step: currentStep, documentDate }) =>
                         currentStep === "document" ? (
                             <DocumentStep
                                 form={form}
@@ -111,7 +128,10 @@ export function ReceivingWizard() {
                                 refetchSuppliers={suppliersQuery.refetch}
                             />
                         ) : (
-                            <LinesStep form={form} />
+                            <LinesStep
+                                form={form}
+                                documentDate={documentDate}
+                            />
                         )
                     }
                 </form.Subscribe>
@@ -120,9 +140,10 @@ export function ReceivingWizard() {
                     selector={(state) => ({
                         step: state.values.step,
                         isSubmitting: state.isSubmitting,
+                        lines: state.values.lines,
                     })}
                 >
-                    {({ step, isSubmitting }) => {
+                    {({ step, isSubmitting, lines }) => {
                         const back = getPreviousStep(step);
                         const next = getNextStep(step);
                         const suppliersUnavailable =
@@ -143,7 +164,7 @@ export function ReceivingWizard() {
                                 >
                                     Back
                                 </Button>
-                                {next && (
+                                {next ? (
                                     <Button
                                         type="submit"
                                         disabled={
@@ -152,6 +173,12 @@ export function ReceivingWizard() {
                                     >
                                         Next
                                     </Button>
+                                ) : (
+                                    <LinesSubmitButton
+                                        isSubmitting={isSubmitting}
+                                        lines={lines}
+                                        linesComplete={linesComplete}
+                                    />
                                 )}
                             </div>
                         );
@@ -337,7 +364,211 @@ function LineUnitSuffix({ productId }: { productId: string }) {
     );
 }
 
-function LinesStep({ form }: { form: ReceivingForm }) {
+type LineRowProps = {
+    form: ReceivingForm;
+    i: number;
+    line: ReceiptLineDraft;
+    totalLines: number;
+    documentDate: string;
+    productInputRef: (el: HTMLInputElement | null) => void;
+    onRemove: () => void;
+};
+
+function LineRow({
+    form,
+    i,
+    line,
+    totalLines,
+    documentDate,
+    productInputRef,
+    onRemove,
+}: LineRowProps) {
+    const { data: product } = useGetProductQuery(line.productId, {
+        skip: !line.productId,
+    });
+    const minExpiryDate = nextIsoDay(documentDate);
+
+    return (
+        <div className="flex flex-col gap-3 rounded-sm border border-border bg-card p-4">
+            <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_200px_32px] lg:items-end lg:gap-2">
+                <form.Field name={`lines[${i}].productId`}>
+                    {(field) => (
+                        <FormField
+                            name={field.name}
+                            label="Product"
+                            error={firstErrorText(field.state.meta.errors)}
+                        >
+                            {(fieldProps) => (
+                                <ProductCombobox
+                                    ref={productInputRef}
+                                    {...fieldProps}
+                                    value={field.state.value}
+                                    onChange={(p) => {
+                                        field.handleChange(p.id);
+                                        if (!p.perishable) {
+                                            form.setFieldValue(
+                                                `lines[${i}].batch`,
+                                                "",
+                                            );
+                                            form.setFieldValue(
+                                                `lines[${i}].expiryDate`,
+                                                "",
+                                            );
+                                        }
+                                    }}
+                                    onBlur={field.handleBlur}
+                                />
+                            )}
+                        </FormField>
+                    )}
+                </form.Field>
+
+                <form.Field name={`lines[${i}].expectedQuantity`}>
+                    {(field) => (
+                        <FormField
+                            name={field.name}
+                            label="Expected quantity"
+                            error={firstErrorText(field.state.meta.errors)}
+                        >
+                            {(fieldProps) => (
+                                <div className="flex">
+                                    <Input
+                                        {...fieldProps}
+                                        type="number"
+                                        inputMode="decimal"
+                                        step="any"
+                                        className="rounded-r-none border-r-0"
+                                        value={field.state.value ?? ""}
+                                        onChange={(e) => {
+                                            const raw = parseFloat(
+                                                e.target.value,
+                                            );
+                                            field.handleChange(
+                                                isNaN(raw) ? null : raw,
+                                            );
+                                        }}
+                                        onBlur={field.handleBlur}
+                                    />
+                                    <LineUnitSuffix
+                                        productId={line.productId}
+                                    />
+                                </div>
+                            )}
+                        </FormField>
+                    )}
+                </form.Field>
+
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label={`Remove line ${i + 1}`}
+                    disabled={totalLines <= 1}
+                    onClick={onRemove}
+                    className="mt-auto self-end"
+                >
+                    ×
+                </Button>
+            </div>
+
+            {product?.perishable && (
+                <div className="grid gap-3 lg:grid-cols-2">
+                    <form.Field name={`lines[${i}].batch`}>
+                        {(field) => (
+                            <FormField
+                                name={field.name}
+                                label="Batch"
+                                error={firstErrorText(field.state.meta.errors)}
+                            >
+                                {(fieldProps) => (
+                                    <Input
+                                        {...fieldProps}
+                                        name={field.name}
+                                        value={field.state.value}
+                                        onChange={(e) =>
+                                            field.handleChange(e.target.value)
+                                        }
+                                        onBlur={field.handleBlur}
+                                    />
+                                )}
+                            </FormField>
+                        )}
+                    </form.Field>
+
+                    <form.Field name={`lines[${i}].expiryDate`}>
+                        {(field) => (
+                            <FormField
+                                name={field.name}
+                                label="Expiry date"
+                                error={firstErrorText(field.state.meta.errors)}
+                            >
+                                {(fieldProps) => (
+                                    <Input
+                                        {...fieldProps}
+                                        name={field.name}
+                                        type="date"
+                                        min={minExpiryDate}
+                                        value={field.state.value}
+                                        onChange={(e) =>
+                                            field.handleChange(e.target.value)
+                                        }
+                                        onBlur={field.handleBlur}
+                                    />
+                                )}
+                            </FormField>
+                        )}
+                    </form.Field>
+                </div>
+            )}
+        </div>
+    );
+}
+
+type LinesSubmitButtonProps = {
+    isSubmitting: boolean;
+    lines: ReceiptLineDraft[];
+    linesComplete: boolean;
+};
+
+function LinesSubmitButton({
+    isSubmitting,
+    lines,
+    linesComplete,
+}: LinesSubmitButtonProps) {
+    const anyProductPending = useAppSelector((rootState) =>
+        lines.some((line) => {
+            if (!line.productId) return false;
+            return (
+                productsApi.endpoints.getProduct.select(line.productId)(
+                    rootState,
+                ).status === "pending"
+            );
+        }),
+    );
+
+    return (
+        <>
+            <Button type="submit" disabled={isSubmitting || anyProductPending}>
+                Continue
+            </Button>
+            {linesComplete && (
+                <p
+                    role="status"
+                    className="w-full text-sm text-muted-foreground"
+                >
+                    Lines are complete — reconciliation comes in the next stage.
+                </p>
+            )}
+        </>
+    );
+}
+
+type LinesStepProps = {
+    form: ReceivingForm;
+    documentDate: string;
+};
+
+function LinesStep({ form, documentDate }: LinesStepProps) {
     const productInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
     const addLineButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -369,117 +600,35 @@ function LinesStep({ form }: { form: ReceivingForm }) {
                 {(arrayField) => (
                     <>
                         {arrayField.state.value.map((line, i) => (
-                            <div
+                            <LineRow
                                 key={line.id}
-                                className="flex flex-col gap-3 rounded-sm border border-border bg-card p-4 lg:grid lg:grid-cols-[1fr_200px_32px] lg:items-end lg:gap-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0"
-                            >
-                                <form.Field name={`lines[${i}].productId`}>
-                                    {(field) => (
-                                        <FormField
-                                            name={field.name}
-                                            label="Product"
-                                            error={firstErrorText(
-                                                field.state.meta.errors,
-                                            )}
-                                        >
-                                            {(fieldProps) => (
-                                                <ProductCombobox
-                                                    ref={(el) => {
-                                                        if (el) {
-                                                            productInputRefs.current.set(
-                                                                line.id,
-                                                                el,
-                                                            );
-                                                        } else {
-                                                            productInputRefs.current.delete(
-                                                                line.id,
-                                                            );
-                                                        }
-                                                    }}
-                                                    {...fieldProps}
-                                                    value={field.state.value}
-                                                    onChange={(productId) =>
-                                                        field.handleChange(
-                                                            productId,
-                                                        )
-                                                    }
-                                                    onBlur={field.handleBlur}
-                                                />
-                                            )}
-                                        </FormField>
-                                    )}
-                                </form.Field>
-
-                                <form.Field
-                                    name={`lines[${i}].expectedQuantity`}
-                                >
-                                    {(field) => (
-                                        <FormField
-                                            name={field.name}
-                                            label="Expected quantity"
-                                            error={firstErrorText(
-                                                field.state.meta.errors,
-                                            )}
-                                        >
-                                            {(fieldProps) => (
-                                                <div className="flex">
-                                                    <Input
-                                                        {...fieldProps}
-                                                        type="number"
-                                                        inputMode="decimal"
-                                                        step="any"
-                                                        className="rounded-r-none border-r-0"
-                                                        value={
-                                                            field.state.value ??
-                                                            ""
-                                                        }
-                                                        onChange={(e) => {
-                                                            const raw =
-                                                                parseFloat(
-                                                                    e.target
-                                                                        .value,
-                                                                );
-                                                            field.handleChange(
-                                                                isNaN(raw)
-                                                                    ? null
-                                                                    : raw,
-                                                            );
-                                                        }}
-                                                        onBlur={
-                                                            field.handleBlur
-                                                        }
-                                                    />
-                                                    <LineUnitSuffix
-                                                        productId={
-                                                            line.productId
-                                                        }
-                                                    />
-                                                </div>
-                                            )}
-                                        </FormField>
-                                    )}
-                                </form.Field>
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    aria-label={`Remove line ${i + 1}`}
-                                    disabled={
-                                        arrayField.state.value.length <= 1
+                                form={form}
+                                i={i}
+                                line={line}
+                                totalLines={arrayField.state.value.length}
+                                documentDate={documentDate}
+                                productInputRef={(el) => {
+                                    if (el) {
+                                        productInputRefs.current.set(
+                                            line.id,
+                                            el,
+                                        );
+                                    } else {
+                                        productInputRefs.current.delete(
+                                            line.id,
+                                        );
                                     }
-                                    onClick={() =>
-                                        handleRemoveLine(
-                                            i,
-                                            arrayField.state.value,
-                                        )
-                                    }
-                                    className="mt-auto self-end"
-                                >
-                                    ×
-                                </Button>
-                            </div>
+                                }}
+                                onRemove={() =>
+                                    handleRemoveLine(i, arrayField.state.value)
+                                }
+                            />
                         ))}
+                        {firstErrorText(arrayField.state.meta.errors) && (
+                            <p className="text-sm text-destructive">
+                                {firstErrorText(arrayField.state.meta.errors)}
+                            </p>
+                        )}
                     </>
                 )}
             </form.Field>
