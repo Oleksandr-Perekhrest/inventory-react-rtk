@@ -8,6 +8,7 @@ import {
 // local dependencies
 import type { Product } from "@/domain";
 import { CategoryCell } from "./CategoryCell";
+import { ProductActionsMenu } from "./ProductActionsMenu";
 import { stockStatus, formatPrice, formatQuantity } from "./helpers";
 
 export const features = tableFeatures({ rowSortingFeature });
@@ -84,5 +85,11 @@ export const columns = columnHelper.columns([
                 {formatPrice(info.getValue())}
             </span>
         ),
+    }),
+    columnHelper.display({
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        cell: (info) => <ProductActionsMenu product={info.row.original} />,
     }),
 ]);

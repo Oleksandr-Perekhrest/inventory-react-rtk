@@ -3,8 +3,8 @@ import type { EntityState } from "@reduxjs/toolkit";
 
 // local dependencies
 import type { Category } from "@/domain";
-import { ROOT, buildChildrenIndex } from "./tree";
 import type { CategoryWithCounts } from "@/api/types";
+import { ROOT, type ChildrenIndex, buildChildrenIndex } from "./tree";
 
 export type MoveTargetOption = {
     id: Category["id"] | null;
@@ -13,6 +13,33 @@ export type MoveTargetOption = {
     disabled: boolean;
     current: boolean;
 };
+
+function dfsWalk(
+    index: ChildrenIndex,
+    data: EntityState<CategoryWithCounts, Category["id"]>,
+    result: MoveTargetOption[],
+    getState: (id: Category["id"]) => { disabled: boolean; current: boolean },
+): void {
+    const stack: [Category["id"], number][] = [];
+    const topLevelIds = index.get(ROOT) ?? [];
+    for (let i = topLevelIds.length - 1; i >= 0; i--) {
+        const id = topLevelIds[i];
+        if (id !== undefined) stack.push([id, 1]);
+    }
+    let top: [Category["id"], number] | undefined;
+    while ((top = stack.pop()) !== undefined) {
+        const [id, depth] = top;
+        const cat = data.entities[id];
+        if (!cat) continue;
+        const { disabled, current } = getState(id);
+        result.push({ id, name: cat.name, depth, disabled, current });
+        const children = index.get(id) ?? [];
+        for (let i = children.length - 1; i >= 0; i--) {
+            const childId = children[i];
+            if (childId !== undefined) stack.push([childId, depth + 1]);
+        }
+    }
+}
 
 export function buildMoveTargets(
     data: EntityState<CategoryWithCounts, Category["id"]>,
@@ -45,64 +72,15 @@ export function buildMoveTargets(
             current: currentParentId === null,
         });
 
-        const dfsStack: [Category["id"], number][] = [];
-        const topLevelIds = index.get(ROOT) ?? [];
-        for (let i = topLevelIds.length - 1; i >= 0; i--) {
-            const id = topLevelIds[i];
-            if (id !== undefined) dfsStack.push([id, 1]);
-        }
-
-        let top: [Category["id"], number] | undefined;
-        while ((top = dfsStack.pop()) !== undefined) {
-            const [id, depth] = top;
-            const cat = data.entities[id];
-            if (!cat) continue;
-
-            const disabled =
-                selfAndDescendants.has(id) || id === currentParentId;
-            result.push({
-                id,
-                name: cat.name,
-                depth,
-                disabled,
-                current: id === currentParentId,
-            });
-
-            const children = index.get(id) ?? [];
-            for (let i = children.length - 1; i >= 0; i--) {
-                const childId = children[i];
-                if (childId !== undefined) dfsStack.push([childId, depth + 1]);
-            }
-        }
+        dfsWalk(index, data, result, (id) => ({
+            disabled: selfAndDescendants.has(id) || id === currentParentId,
+            current: id === currentParentId,
+        }));
     } else {
-        const dfsStack: [Category["id"], number][] = [];
-        const topLevelIds = index.get(ROOT) ?? [];
-        for (let i = topLevelIds.length - 1; i >= 0; i--) {
-            const id = topLevelIds[i];
-            if (id !== undefined) dfsStack.push([id, 1]);
-        }
-
-        let top: [Category["id"], number] | undefined;
-        while ((top = dfsStack.pop()) !== undefined) {
-            const [id, depth] = top;
-            const cat = data.entities[id];
-            if (!cat) continue;
-
+        dfsWalk(index, data, result, (id) => {
             const isCurrent = id === mode.categoryId;
-            result.push({
-                id,
-                name: cat.name,
-                depth,
-                disabled: isCurrent,
-                current: isCurrent,
-            });
-
-            const children = index.get(id) ?? [];
-            for (let i = children.length - 1; i >= 0; i--) {
-                const childId = children[i];
-                if (childId !== undefined) dfsStack.push([childId, depth + 1]);
-            }
-        }
+            return { disabled: isCurrent, current: isCurrent };
+        });
     }
 
     return result;

@@ -1,5 +1,4 @@
 // outsource dependencies
-import { toast } from "sonner";
 import { useCallback, type ReactNode } from "react";
 import {
     Accessibility,
@@ -15,15 +14,11 @@ import {
 } from "@dnd-kit/react";
 
 // local dependencies
-import { productsApi } from "@/api/endpoints/products";
 import { categoriesApi } from "@/api/endpoints/categories";
 import { useAppStore, useAppDispatch } from "@/store/hooks";
-import { isApiErrorData, getErrorMessage } from "@/api/errors";
 import type { AppStore, RootState, AppDispatch } from "@/store/store";
-import {
-    expandMany,
-    setDropIndicator,
-} from "@/features/category-tree/categoryTreeSlice";
+import { executeProductMove, executeCategoryMove } from "./moveCommands";
+import { setDropIndicator } from "@/features/category-tree/categoryTreeSlice";
 import {
     getDropZone,
     type DropZone,
@@ -31,7 +26,6 @@ import {
     isCategoryDndData,
     resolveProductDrop,
     resolveCategoryDrop,
-    describeCategoryMove,
 } from "@/features/category-tree/dnd";
 
 // The Accessibility plugin adds role="button", tabindex="0" and keyboard
@@ -65,21 +59,6 @@ function DragChip({ children }: { children: ReactNode }) {
             {children}
         </div>
     );
-}
-
-async function notifyMoveResult(
-    promise: Promise<unknown>,
-    { name, destination }: { name: string; destination: string },
-) {
-    try {
-        await promise;
-        toast.success(`Moved "${name}" to ${destination}`, { duration: 3000 });
-    } catch (error) {
-        toast.error(`Couldn't move "${name}"`, {
-            description: `Changes were reverted. ${getErrorMessage(isApiErrorData(error) ? error : undefined)}`,
-            duration: 6000,
-        });
-    }
 }
 
 function computeCategoryDrop(
@@ -154,19 +133,11 @@ async function runProductDrop(
 ) {
     const result = computeProductDrop(operation);
     if (!result) return;
-
-    const categories = categoriesApi.endpoints.getCategories.select()(
-        store.getState(),
-    ).data;
-    const categoryName =
-        categories?.entities[result.targetId]?.name ?? result.targetId;
-
-    await notifyMoveResult(
-        dispatch(
-            productsApi.endpoints.updateProduct.initiate(result.resolved),
-        ).unwrap(),
-        { name: result.name, destination: `"${categoryName}"` },
-    );
+    await executeProductMove(store, dispatch, {
+        id: result.resolved.id,
+        categoryId: result.resolved.categoryId,
+        name: result.name,
+    });
 }
 
 async function runCategoryDrop(
@@ -176,25 +147,7 @@ async function runCategoryDrop(
 ) {
     const result = computeCategoryDrop(operation, store.getState());
     if (!result) return;
-
-    const categories = categoriesApi.endpoints.getCategories.select()(
-        store.getState(),
-    ).data;
-    const { name, destination } = describeCategoryMove(
-        categories,
-        result.resolved,
-    );
-
-    if (result.resolved.parentId === result.targetId) {
-        dispatch(expandMany([result.targetId]));
-    }
-
-    await notifyMoveResult(
-        dispatch(
-            categoriesApi.endpoints.moveCategory.initiate(result.resolved),
-        ).unwrap(),
-        { name, destination },
-    );
+    await executeCategoryMove(store, dispatch, result.resolved);
 }
 
 export function CatalogDndProvider({ children }: { children: ReactNode }) {

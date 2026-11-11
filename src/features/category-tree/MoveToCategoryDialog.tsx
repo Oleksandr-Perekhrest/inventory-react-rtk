@@ -77,17 +77,6 @@ export function MoveToCategoryDialog({
             let prev = activeIndex - 1;
             while (prev >= 0 && filtered[prev]?.disabled) prev--;
             if (prev >= 0) setActiveIndex(prev);
-        } else if (e.key === "Home") {
-            e.preventDefault();
-            let first = 0;
-            while (first < filtered.length && filtered[first]?.disabled)
-                first++;
-            if (first < filtered.length) setActiveIndex(first);
-        } else if (e.key === "End") {
-            e.preventDefault();
-            let last = filtered.length - 1;
-            while (last >= 0 && filtered[last]?.disabled) last--;
-            if (last >= 0) setActiveIndex(last);
         } else if (e.key === "Enter") {
             e.preventDefault();
             const active = filtered[activeIndex];
