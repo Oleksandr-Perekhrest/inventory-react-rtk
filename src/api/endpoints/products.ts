@@ -1,6 +1,6 @@
 // local dependencies
 import type { Paginated } from "../types";
-import type { Product } from "../../domain";
+import type { Product, Category } from "../../domain";
 import { baseApi, serializeParams } from "../baseApi";
 import { matchesCategoryFilter } from "../productSelection";
 import type { ProductsParams, UpdateProductBody } from "../queries";
@@ -28,6 +28,46 @@ const productsQueryApi = baseApi.injectEndpoints({
     }),
 });
 
+// State type that both RootState and RTK Query's onQueryStarted getState() satisfy
+type ApiState = { api: ReturnType<typeof baseApi.reducer> };
+
+function findCachedCategoryId(
+    state: ApiState,
+    id: Product["id"],
+): Category["id"] | undefined {
+    const cachedArgs = productsQueryApi.util.selectCachedArgsForQuery(
+        state,
+        "getProducts",
+    );
+    for (const args of cachedArgs) {
+        const found = productsQueryApi.endpoints.getProducts
+            .select(args)(state)
+            .data?.items.find((p) => p.id === id);
+        if (found !== undefined) return found.categoryId;
+    }
+    return undefined;
+}
+
+function applyCategoryChangeToList(
+    draft: Paginated<Product>,
+    change: {
+        id: Product["id"];
+        categoryId: Category["id"];
+        stays: boolean;
+    },
+): void {
+    const idx = draft.items.findIndex((p) => p.id === change.id);
+    if (idx === -1) return;
+    const item = draft.items[idx];
+    if (item === undefined) return;
+    if (change.stays) {
+        item.categoryId = change.categoryId;
+    } else {
+        draft.items.splice(idx, 1);
+        draft.total = Math.max(0, draft.total - 1);
+    }
+}
+
 const extendedApi = productsQueryApi.injectEndpoints({
     endpoints: (build) => ({
         updateProduct: build.mutation<
@@ -44,27 +84,7 @@ const extendedApi = productsQueryApi.injectEndpoints({
                 { dispatch, getState, queryFulfilled },
             ) => {
                 const state = getState();
-                const categories =
-                    categoriesApi.endpoints.getCategories.select()(state).data;
-                const cachedArgs =
-                    productsQueryApi.util.selectCachedArgsForQuery(
-                        state,
-                        "getProducts",
-                    );
-
-                let fromCategoryId: string | undefined;
-                for (const args of cachedArgs) {
-                    const cached =
-                        productsQueryApi.endpoints.getProducts.select(args)(
-                            state,
-                        ).data;
-                    const found = cached?.items.find((p) => p.id === id);
-                    if (found !== undefined) {
-                        fromCategoryId = found.categoryId;
-                        break;
-                    }
-                }
-
+                const fromCategoryId = findCachedCategoryId(state, id);
                 if (
                     fromCategoryId === undefined ||
                     fromCategoryId === categoryId
@@ -73,7 +93,13 @@ const extendedApi = productsQueryApi.injectEndpoints({
                     return;
                 }
 
-                const resolvedFrom = fromCategoryId;
+                const categories =
+                    categoriesApi.endpoints.getCategories.select()(state).data;
+                const cachedArgs =
+                    productsQueryApi.util.selectCachedArgsForQuery(
+                        state,
+                        "getProducts",
+                    );
                 const patches: Array<{ undo: () => void }> = [];
 
                 patches.push(
@@ -83,7 +109,7 @@ const extendedApi = productsQueryApi.injectEndpoints({
                             undefined,
                             (draft) =>
                                 adjustProductCountsInCache(draft, {
-                                    fromCategoryId: resolvedFrom,
+                                    fromCategoryId,
                                     toCategoryId: categoryId,
                                 }),
                         ),
@@ -91,37 +117,26 @@ const extendedApi = productsQueryApi.injectEndpoints({
                 );
 
                 for (const args of cachedArgs) {
+                    // categories absent: assume stays=true; invalidation refetches the rare mismatch
+                    const stays =
+                        categories === undefined
+                            ? true
+                            : matchesCategoryFilter(
+                                  categoryId,
+                                  args,
+                                  categories,
+                              );
                     patches.push(
                         dispatch(
                             productsQueryApi.util.updateQueryData(
                                 "getProducts",
                                 args,
-                                (draft) => {
-                                    const idx = draft.items.findIndex(
-                                        (p) => p.id === id,
-                                    );
-                                    if (idx === -1) return;
-                                    const stays =
-                                        categories !== undefined
-                                            ? matchesCategoryFilter(
-                                                  categoryId,
-                                                  args,
-                                                  categories,
-                                              )
-                                            : args.categoryId === undefined ||
-                                              args.categoryId === categoryId;
-                                    const item = draft.items[idx];
-                                    if (item === undefined) return;
-                                    if (stays) {
-                                        item.categoryId = categoryId;
-                                    } else {
-                                        draft.items.splice(idx, 1);
-                                        draft.total = Math.max(
-                                            0,
-                                            draft.total - 1,
-                                        );
-                                    }
-                                },
+                                (draft) =>
+                                    applyCategoryChangeToList(draft, {
+                                        id,
+                                        categoryId,
+                                        stays,
+                                    }),
                             ),
                         ),
                     );
@@ -142,9 +157,7 @@ const extendedApi = productsQueryApi.injectEndpoints({
                 try {
                     await queryFulfilled;
                 } catch {
-                    for (const patch of patches) {
-                        patch.undo();
-                    }
+                    for (const patch of patches) patch.undo();
                 }
             },
             invalidatesTags: (_result, _error, { id }) => [
