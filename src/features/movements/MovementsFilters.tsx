@@ -1,5 +1,7 @@
 // outsource dependencies
 import { cn } from "cn";
+import { X } from "lucide-react";
+import { useId, useRef } from "react";
 
 // local dependencies
 import { presetRange } from "./helpers";
@@ -8,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { hasActiveFilters } from "./journalSearch";
 import { useJournalSearch } from "./useJournalSearch";
+import { ProductCombobox } from "@/components/ProductCombobox";
 
 type TypeOption = { label: string; value: MovementType | undefined };
 
@@ -37,6 +40,8 @@ const BUTTON_INACTIVE =
 export function MovementsFilters() {
     const { search, updateSearch } = useJournalSearch();
     const today = new Date();
+    const productComboboxId = useId();
+    const comboboxInputRef = useRef<HTMLInputElement>(null);
 
     function clearFilters() {
         updateSearch({
@@ -136,6 +141,34 @@ export function MovementsFilters() {
                         {label}
                     </button>
                 ))}
+            </div>
+            <div className="flex flex-col gap-1">
+                <label htmlFor={productComboboxId} className={LABEL_CLASS}>
+                    Product
+                </label>
+                <div className="flex items-center gap-1">
+                    <ProductCombobox
+                        id={productComboboxId}
+                        ref={comboboxInputRef}
+                        value={search.productId ?? ""}
+                        onChange={(product) =>
+                            updateSearch({ productId: product.id })
+                        }
+                    />
+                    {search.productId && (
+                        <button
+                            type="button"
+                            aria-label="Clear product filter"
+                            onClick={() => {
+                                updateSearch({ productId: undefined });
+                                comboboxInputRef.current?.focus();
+                            }}
+                            className="flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            <X aria-hidden="true" className="size-3.5" />
+                        </button>
+                    )}
+                </div>
             </div>
             {hasActiveFilters(search) && (
                 <Button variant="outline" size="sm" onClick={clearFilters}>

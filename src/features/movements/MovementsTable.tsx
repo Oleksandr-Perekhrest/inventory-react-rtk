@@ -10,11 +10,11 @@ import {
 
 // local dependencies
 import type { MovementType } from "@/domain";
-import { getErrorMessage } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { hasActiveFilters } from "./journalSearch";
 import type { MovementListItem } from "@/api/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getErrorStatus, getErrorMessage } from "@/api/errors";
 import { useJournalSearch, useJournalMovements } from "./useJournalSearch";
 import {
     formatDateTime,
@@ -157,6 +157,20 @@ export function MovementsTable() {
     });
 
     if (isError && !data) {
+        if (getErrorStatus(error) === 404 && search.productId !== undefined) {
+            return (
+                <div className="flex flex-col flex-1 min-h-0 items-center justify-center gap-2 rounded-sm border bg-card p-8 text-sm text-muted-foreground">
+                    <span>{"This product doesn't exist"}</span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateSearch({ productId: undefined })}
+                    >
+                        Clear product filter
+                    </Button>
+                </div>
+            );
+        }
         return (
             <div
                 role="alert"

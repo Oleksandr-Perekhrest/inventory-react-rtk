@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { Supplier } from "@/domain/supplier";
 import type { ReceiptResponse } from "@/api/types";
-import { ProductCombobox } from "./ProductCombobox";
+import { ProductCombobox } from "@/components/ProductCombobox";
 import { isApiErrorData, getErrorMessage } from "@/api/errors";
 import { useGetSuppliersQuery } from "@/api/endpoints/suppliers";
 import { usePostReceiptMutation } from "@/api/endpoints/receipts";
