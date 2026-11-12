@@ -26,4 +26,5 @@ const extendedApi = baseApi.injectEndpoints({
     }),
 });
 
+export const receiptsApi = extendedApi;
 export const { usePostReceiptMutation } = extendedApi;
