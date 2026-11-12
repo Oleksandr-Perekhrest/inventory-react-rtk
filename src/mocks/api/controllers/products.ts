@@ -2,8 +2,8 @@
 import type { Db } from "../../db";
 import { notFound } from "../errors";
 import { paginate } from "../pagination";
-import type { Product } from "../../../domain";
 import type { Paginated } from "../../../api/types";
+import { stockStatus, type Product } from "../../../domain";
 import { buildChildrenMap, collectDescendantIds } from "../tree";
 import type {
     ListProductsQuery,
@@ -55,13 +55,7 @@ export function listProducts({
     }
 
     if (stock !== undefined) {
-        if (stock === "out") {
-            products = products.filter((p) => p.quantity === 0);
-        } else {
-            products = products.filter(
-                (p) => p.quantity > 0 && p.quantity < p.minQuantity,
-            );
-        }
+        products = products.filter((p) => stockStatus(p) === stock);
     }
 
     products.sort((a, b) => {

@@ -6,10 +6,10 @@ import {
 } from "@tanstack/react-table";
 
 // local dependencies
-import type { Product } from "@/domain";
 import { CategoryCell } from "./CategoryCell";
+import { stockStatus, type Product } from "@/domain";
+import { formatPrice, formatQuantity } from "./helpers";
 import { ProductActionsMenu } from "./ProductActionsMenu";
-import { stockStatus, formatPrice, formatQuantity } from "./helpers";
 
 export const features = tableFeatures({ rowSortingFeature });
 

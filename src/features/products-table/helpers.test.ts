@@ -2,63 +2,7 @@
 import { it, expect, describe } from "vitest";
 
 // local dependencies
-import type { Product } from "@/domain";
-import { formatPrice, stockStatus, formatQuantity } from "./helpers";
-
-function makeProduct(overrides: Partial<Product>): Product {
-    return {
-        id: "prod-1",
-        sku: "SKU-001",
-        name: "Test Product",
-        categoryId: "cat-1",
-        unit: "pcs",
-        price: 100,
-        quantity: 10,
-        minQuantity: 5,
-        perishable: false,
-        ...overrides,
-    };
-}
-
-describe("stockStatus", () => {
-    it("quantity 0 → 'out'", () => {
-        expect(stockStatus(makeProduct({ quantity: 0, minQuantity: 10 }))).toBe(
-            "out",
-        );
-    });
-
-    it("quantity 0 with minQuantity 0 → 'out'", () => {
-        expect(stockStatus(makeProduct({ quantity: 0, minQuantity: 0 }))).toBe(
-            "out",
-        );
-    });
-
-    it("quantity below minQuantity → 'low'", () => {
-        expect(stockStatus(makeProduct({ quantity: 3, minQuantity: 10 }))).toBe(
-            "low",
-        );
-    });
-
-    it("quantity equal to minQuantity → 'ok'", () => {
-        expect(
-            stockStatus(makeProduct({ quantity: 10, minQuantity: 10 })),
-        ).toBe("ok");
-    });
-
-    it("quantity above minQuantity → 'ok'", () => {
-        expect(
-            stockStatus(makeProduct({ quantity: 15, minQuantity: 10 })),
-        ).toBe("ok");
-    });
-
-    it("fractional kg: 0.5 below minQuantity 1 → 'low'", () => {
-        expect(
-            stockStatus(
-                makeProduct({ quantity: 0.5, minQuantity: 1, unit: "kg" }),
-            ),
-        ).toBe("low");
-    });
-});
+import { formatPrice, formatQuantity } from "./helpers";
 
 describe("formatPrice", () => {
     it("2850 kopecks → '₴28.50'", () => {
