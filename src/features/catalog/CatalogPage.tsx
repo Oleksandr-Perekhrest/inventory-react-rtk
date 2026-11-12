@@ -58,7 +58,7 @@ export function CatalogPage() {
             <FullHeightPage
                 header={<h1 className="text-2xl font-semibold">Catalog</h1>}
             >
-                <div className="flex flex-col gap-4 lg:flex-row lg:flex-1 lg:min-h-0">
+                <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
                     {isDesktop ? (
                         <div className="w-64 shrink-0 min-h-0 overflow-y-auto">
                             <CategoryTree />
