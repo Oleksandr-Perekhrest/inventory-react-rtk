@@ -4,6 +4,7 @@ import { getRouteApi } from "@tanstack/react-router";
 
 // local dependencies
 import type { Category } from "@/domain";
+import { applySearchPatch } from "@/lib/search";
 import { toProductsParams } from "./catalogSearch";
 import type { CatalogSearch } from "./catalogSearch";
 import { useGetProductsQuery } from "@/api/endpoints/products";
@@ -17,24 +18,7 @@ export function useCatalogSearch() {
     const updateSearch = useCallback(
         (patch: Partial<CatalogSearch>, options?: { replace?: boolean }) => {
             navigate({
-                search: (prev) => {
-                    // Reset page only when a non-page key in the patch truly changes.
-                    // undefined and absent key are treated as equal.
-                    const changed = (k: keyof CatalogSearch): boolean =>
-                        k in patch && patch[k] !== prev[k];
-                    const resetsPage =
-                        changed("categoryId") ||
-                        changed("q") ||
-                        changed("stock") ||
-                        changed("sort") ||
-                        changed("order") ||
-                        changed("pageSize");
-                    return {
-                        ...prev,
-                        ...patch,
-                        ...(resetsPage ? { page: 1 } : {}),
-                    };
-                },
+                search: (prev) => applySearchPatch(prev, patch),
                 replace: options?.replace,
             });
         },
