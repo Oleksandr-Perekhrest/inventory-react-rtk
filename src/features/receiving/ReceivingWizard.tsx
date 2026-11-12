@@ -59,6 +59,8 @@ import {
 const STEP_LABELS: Record<ReceivingStep, string> = {
     document: "Document",
     lines: "Lines",
+    reconciliation: "Reconciliation",
+    review: "Review",
 };
 
 function firstErrorText(errors: ReadonlyArray<unknown>): string | undefined {

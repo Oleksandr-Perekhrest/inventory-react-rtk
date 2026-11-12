@@ -90,8 +90,8 @@ describe("getNextStep", () => {
         expect(getNextStep("document")).toBe("lines");
     });
 
-    it("returns null after lines (last step)", () => {
-        expect(getNextStep("lines")).toBeNull();
+    it("returns reconciliation after lines", () => {
+        expect(getNextStep("lines")).toBe("reconciliation");
     });
 });
 

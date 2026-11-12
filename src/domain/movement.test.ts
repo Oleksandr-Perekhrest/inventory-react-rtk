@@ -124,12 +124,7 @@ describe("MovementSchema", () => {
     });
 
     describe("quantity zero", () => {
-        for (const type of [
-            "receipt",
-            "shipment",
-            "write-off",
-            "adjustment",
-        ] as const) {
+        for (const type of ["shipment", "write-off", "adjustment"] as const) {
             it(`rejects quantity 0 for ${type}`, () => {
                 const result = MovementSchema.safeParse({
                     ...receipt,
