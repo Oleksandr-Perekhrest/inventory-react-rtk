@@ -1,6 +1,14 @@
 // outsource dependencies
+import type { Ref } from "react";
 import { useBlocker } from "@tanstack/react-router";
-import { useRef, useMemo, useState, useEffect, useCallback } from "react";
+import {
+    useRef,
+    useMemo,
+    useState,
+    useEffect,
+    useCallback,
+    useImperativeHandle,
+} from "react";
 
 // local dependencies
 import { formatUnit } from "@/domain";
@@ -69,10 +77,74 @@ function nextIsoDay(isoDate: string): string {
     return toLocalIsoDate(new Date(Number(y), Number(m) - 1, Number(d) + 1));
 }
 
+type InnerHandle = { cancelSync: () => void };
+
 export function ReceivingWizard() {
-    const persistedDraft = useAppSelector(selectReceivingDraft);
     const hasDraft = useAppSelector(selectHasReceivingDraft);
     const dispatch = useAppDispatch();
+    const [formKey, setFormKey] = useState(0);
+    const [discardOpen, setDiscardOpen] = useState(false);
+    const headingRef = useRef<HTMLHeadingElement>(null);
+    const innerRef = useRef<InnerHandle>(null);
+
+    const handleDiscardConfirm = useCallback(() => {
+        innerRef.current?.cancelSync();
+        dispatch(draftDiscarded());
+        setFormKey((k) => k + 1);
+        setDiscardOpen(false);
+        queueMicrotask(() => {
+            headingRef.current?.focus();
+        });
+    }, [dispatch]);
+
+    return (
+        <div className="p-6">
+            <div className="mb-6 flex items-center justify-between gap-4">
+                <h1
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-2xl font-semibold outline-none"
+                >
+                    Receiving
+                </h1>
+                {hasDraft && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setDiscardOpen(true)}
+                    >
+                        Discard draft
+                    </Button>
+                )}
+            </div>
+
+            <ReceivingWizardInner key={formKey} ref={innerRef} />
+
+            <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Discard this receipt draft?
+                        </AlertDialogTitle>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={handleDiscardConfirm}
+                        >
+                            Discard
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+    );
+}
+
+function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
+    const dispatch = useAppDispatch();
+    const persistedDraft = useAppSelector(selectReceivingDraft);
     const store = useAppStore();
     const [initialDraft] = useState(
         () =>
@@ -80,7 +152,6 @@ export function ReceivingWizard() {
             createEmptyDraft(toLocalIsoDate(new Date()), crypto.randomUUID()),
     );
     const [linesComplete, setLinesComplete] = useState(false);
-    const [discardOpen, setDiscardOpen] = useState(false);
 
     const suppliersQuery = useGetSuppliersQuery();
     const suppliers = suppliersQuery.data;
@@ -94,9 +165,8 @@ export function ReceivingWizard() {
     );
 
     const formRef = useRef<HTMLFormElement>(null);
-    const headingRef = useRef<HTMLHeadingElement>(null);
 
-    const { form, clearFailedSteps } = useReceivingForm({
+    const { form } = useReceivingForm({
         initialDraft,
         supplierExists,
         onComplete: () => setLinesComplete(true),
@@ -113,6 +183,10 @@ export function ReceivingWizard() {
 
     const draftSync = useDraftSync(form);
 
+    useImperativeHandle(ref, () => ({ cancelSync: draftSync.cancel }), [
+        draftSync.cancel,
+    ]);
+
     const blocker = useBlocker({
         shouldBlockFn: () => {
             draftSync.flush();
@@ -121,20 +195,6 @@ export function ReceivingWizard() {
         withResolver: true,
         enableBeforeUnload: false,
     });
-
-    const handleDiscardConfirm = useCallback(() => {
-        draftSync.cancel();
-        dispatch(draftDiscarded());
-        form.reset(
-            createEmptyDraft(toLocalIsoDate(new Date()), crypto.randomUUID()),
-        );
-        clearFailedSteps();
-        setDiscardOpen(false);
-        setLinesComplete(false);
-        queueMicrotask(() => {
-            headingRef.current?.focus();
-        });
-    }, [draftSync, dispatch, form, clearFailedSteps]);
 
     const handleBlockerOpenChange = useCallback(
         (open: boolean) => {
@@ -182,25 +242,7 @@ export function ReceivingWizard() {
     );
 
     return (
-        <div className="p-6">
-            <div className="mb-6 flex items-center justify-between gap-4">
-                <h1
-                    ref={headingRef}
-                    tabIndex={-1}
-                    className="text-2xl font-semibold outline-none"
-                >
-                    Receiving
-                </h1>
-                {hasDraft && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setDiscardOpen(true)}
-                    >
-                        Discard draft
-                    </Button>
-                )}
-            </div>
+        <>
             <form
                 ref={formRef}
                 onSubmit={handleFormSubmit}
@@ -317,26 +359,7 @@ export function ReceivingWizard() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-
-            <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            Discard this receipt draft?
-                        </AlertDialogTitle>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            variant="destructive"
-                            onClick={handleDiscardConfirm}
-                        >
-                            Discard
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+        </>
     );
 }
 
