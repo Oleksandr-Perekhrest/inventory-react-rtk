@@ -864,15 +864,20 @@ describe("createReconciliationStepSchema", () => {
         }
     });
 
-    it("does not produce 'Nothing to receive' when a known line is positive and an unknown-product line is not", () => {
+    it("counts a positive line toward 'Nothing to receive' even when its product is not loaded", () => {
+        // regression: hasPositive used to be computed after `if (!product) continue`
         const lines = [
             {
                 ...createEmptyLine("l1"),
                 productId: "unknown-id",
                 expectedQuantity: 5,
-                actualQuantity: 0,
+                actualQuantity: 5,
             },
-            baseLine({ id: "l2" }),
+            baseLine({
+                id: "l2",
+                actualQuantity: 0,
+                discrepancyNote: "Not delivered",
+            }),
         ];
         expect(schema.safeParse(lines).success).toBe(true);
     });
