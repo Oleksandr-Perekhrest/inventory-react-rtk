@@ -7,7 +7,6 @@ import {
     hasDetails,
     presetRange,
     discrepancyKind,
-    formatLocalDate,
     formatSignedQuantity,
     formatQuantityWithUnit,
 } from "./helpers";
@@ -100,8 +99,11 @@ describe("formatLocalDate", () => {
         vi.unstubAllEnvs();
     });
 
-    it("formats using local time (America/Los_Angeles): 2026-11-20 → 20 Nov 2026", () => {
+    it("formats using local time (America/Los_Angeles): 2026-11-20 → 20 Nov 2026", async () => {
         vi.stubEnv("TZ", "America/Los_Angeles");
-        expect(formatLocalDate("2026-11-20")).toContain("20 Nov 2026");
+        // Re-import after stubbing so the module-level Intl.DateTimeFormat is constructed in the new zone.
+        vi.resetModules();
+        const { formatLocalDate: fmt } = await import("./helpers");
+        expect(fmt("2026-11-20")).toContain("20 Nov 2026");
     });
 });
