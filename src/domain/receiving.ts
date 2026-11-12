@@ -280,6 +280,14 @@ export const receiptPayloadSchema = z
                         "discrepancyNote must be absent when actualQuantity matches expectedQuantity",
                 });
             }
+
+            if (line.expiryDate !== undefined && line.expiryDate <= data.date) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["lines", i, "expiryDate"],
+                    message: "Expiry date must be after the document date",
+                });
+            }
         }
 
         if (!hasPositive) {
@@ -288,6 +296,27 @@ export const receiptPayloadSchema = z
                 path: ["lines"],
                 message: "Nothing to receive: all actual quantities are 0",
             });
+        }
+
+        const seen = new Map<string, Array<string | null>>();
+        for (const [i, line] of data.lines.entries()) {
+            const prev = seen.get(line.productId) ?? [];
+            const batch = line.batch ?? null;
+
+            const isDuplicate =
+                batch === null
+                    ? prev.length > 0
+                    : prev.some((b) => b === null || b === batch);
+
+            if (isDuplicate) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["lines", i, "productId"],
+                    message: "Duplicate product and batch combination",
+                });
+            } else {
+                seen.set(line.productId, [...prev, batch]);
+            }
         }
     });
 export type ReceiptPayload = z.infer<typeof receiptPayloadSchema>;

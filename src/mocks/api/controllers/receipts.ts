@@ -3,6 +3,7 @@ import type { Db } from "../../db";
 import { MovementSchema } from "../../../domain";
 import { ApiError, badRequest } from "../errors";
 import type { ReceiptResponse } from "../../../api/types";
+import { combineLocalDateWithTime } from "../../../lib/date";
 import { unitPrecisionError } from "../../../domain/receiving";
 import type { ReceiptPayload } from "../../../domain/receiving";
 
@@ -104,8 +105,7 @@ export function postReceipt({ db, body }: { db: Db; body: ReceiptPayload }): {
             return isNaN(n) ? max : Math.max(max, n);
         }, 0);
 
-        const timeStr = now.toISOString().slice(10);
-        const movDate = body.date + timeStr;
+        const movDate = combineLocalDateWithTime(body.date, now);
 
         const movementIds: string[] = [];
         let discrepancyCount = 0;

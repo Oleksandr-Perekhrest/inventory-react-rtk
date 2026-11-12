@@ -11,14 +11,17 @@ const extendedApi = baseApi.injectEndpoints({
                 method: "POST",
                 body,
             }),
-            invalidatesTags: (_result, _error, arg) => [
-                { type: "Movement" as const, id: "LIST" },
-                { type: "Product" as const, id: "LIST" },
-                ...arg.lines.map((line) => ({
-                    type: "Product" as const,
-                    id: line.productId,
-                })),
-            ],
+            invalidatesTags: (result, _error, arg) => {
+                if (!result) return [];
+                return [
+                    { type: "Movement" as const, id: "LIST" },
+                    { type: "Product" as const, id: "LIST" },
+                    ...arg.lines.map((line) => ({
+                        type: "Product" as const,
+                        id: line.productId,
+                    })),
+                ];
+            },
         }),
     }),
 });
