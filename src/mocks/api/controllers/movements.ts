@@ -2,6 +2,7 @@
 import type { Db } from "../../db";
 import { paginate } from "../pagination";
 import { notFound, badRequest } from "../errors";
+import { toLocalIsoDate } from "../../../lib/date";
 import type { MovementsQuery } from "../../../api/queries";
 import type { Paginated, MovementListItem } from "../../../api/types";
 
@@ -12,7 +13,7 @@ export function listMovements({
     db: Db;
     query: MovementsQuery;
 }): { body: Paginated<MovementListItem> } {
-    const { page, pageSize, type, productId, from, to } = query;
+    const { page, pageSize, type, productId, from, to, order } = query;
 
     if (productId !== undefined) {
         const exists = db.products.some((p) => p.id === productId);
@@ -34,16 +35,23 @@ export function listMovements({
     if (productId !== undefined) {
         movements = movements.filter((m) => m.productId === productId);
     }
-    if (from !== undefined) {
-        movements = movements.filter((m) => m.date.slice(0, 10) >= from);
-    }
-    if (to !== undefined) {
-        movements = movements.filter((m) => m.date.slice(0, 10) <= to);
+    if (from !== undefined || to !== undefined) {
+        // the mock runs in the user's browser, so the local time zone is the user's;
+        // a real backend would need the client's time zone.
+        movements = movements.filter((m) => {
+            const localDate = toLocalIsoDate(new Date(m.date));
+            return (
+                (from === undefined || localDate >= from) &&
+                (to === undefined || localDate <= to)
+            );
+        });
     }
 
     movements.sort((a, b) => {
-        const dateCmp = b.date.localeCompare(a.date);
-        return dateCmp !== 0 ? dateCmp : b.id.localeCompare(a.id);
+        const sign = order === "asc" ? 1 : -1;
+        const dateCmp = a.date.localeCompare(b.date);
+        if (dateCmp !== 0) return sign * dateCmp;
+        return sign * a.id.localeCompare(b.id);
     });
 
     const paged = paginate(movements, page, pageSize);

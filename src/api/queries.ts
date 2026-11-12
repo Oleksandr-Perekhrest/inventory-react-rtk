@@ -31,6 +31,7 @@ export const movementsQuerySchema = z.object({
     to: z.iso.date().optional(),
     from: z.iso.date().optional(),
     type: MovementTypeSchema.optional(),
+    order: z.enum(["asc", "desc"]).default("desc"),
     productId: z.string().optional(),
 });
 

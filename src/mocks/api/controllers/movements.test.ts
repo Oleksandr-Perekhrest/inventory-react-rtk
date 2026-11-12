@@ -13,7 +13,7 @@ const db = createDb({ storage: createMemoryStorage(), now: () => FIXED_NOW });
 function q(
     overrides: Partial<Parameters<typeof listMovements>[0]["query"]> = {},
 ): Parameters<typeof listMovements>[0]["query"] {
-    return { page: 1, pageSize: 20, ...overrides };
+    return { page: 1, pageSize: 20, order: "desc", ...overrides };
 }
 
 function offsetDay(dateStr: string, delta: number): string {
