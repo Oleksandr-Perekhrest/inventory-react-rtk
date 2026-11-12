@@ -7,12 +7,17 @@ import type { Product } from "./product";
 import {
     getNextStep,
     isDraftEmpty,
+    hasDiscrepancy,
     createEmptyLine,
     getPreviousStep,
     createEmptyDraft,
+    getActualQuantity,
     type ReceiptDraft,
+    buildReceiptPayload,
+    receiptPayloadSchema,
     createLinesStepSchema,
     createDocumentStepSchema,
+    createReconciliationStepSchema,
 } from "./receiving";
 
 // ---------------------------------------------------------------------------
@@ -681,5 +686,594 @@ describe("formatUnit", () => {
 
     it("leaves 'box' unchanged", () => {
         expect(formatUnit("box")).toBe("box");
+    });
+});
+
+// ---------------------------------------------------------------------------
+// getActualQuantity
+// ---------------------------------------------------------------------------
+
+describe("getActualQuantity", () => {
+    it("returns expectedQuantity when actualQuantity is undefined", () => {
+        const line = {
+            ...createEmptyLine("l1"),
+            productId: "p1",
+            expectedQuantity: 5,
+        };
+        expect(getActualQuantity(line)).toBe(5);
+    });
+
+    it("returns null when actualQuantity is null", () => {
+        const line = {
+            ...createEmptyLine("l1"),
+            productId: "p1",
+            expectedQuantity: 5,
+            actualQuantity: null,
+        };
+        expect(getActualQuantity(line)).toBeNull();
+    });
+
+    it("returns the explicit actualQuantity when set", () => {
+        const line = {
+            ...createEmptyLine("l1"),
+            productId: "p1",
+            expectedQuantity: 5,
+            actualQuantity: 3,
+        };
+        expect(getActualQuantity(line)).toBe(3);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// hasDiscrepancy
+// ---------------------------------------------------------------------------
+
+describe("hasDiscrepancy", () => {
+    it("no discrepancy when actualQuantity is undefined (actual resolves to expected)", () => {
+        const line = {
+            ...createEmptyLine("l1"),
+            productId: "p1",
+            expectedQuantity: 5,
+        };
+        expect(hasDiscrepancy(line)).toBe(false);
+    });
+
+    it("no discrepancy when actualQuantity is null", () => {
+        const line = {
+            ...createEmptyLine("l1"),
+            productId: "p1",
+            expectedQuantity: 5,
+            actualQuantity: null,
+        };
+        expect(hasDiscrepancy(line)).toBe(false);
+    });
+
+    it("no discrepancy when actual equals expected", () => {
+        const line = {
+            ...createEmptyLine("l1"),
+            productId: "p1",
+            expectedQuantity: 5,
+            actualQuantity: 5,
+        };
+        expect(hasDiscrepancy(line)).toBe(false);
+    });
+
+    it("discrepancy when actual differs from expected", () => {
+        const line = {
+            ...createEmptyLine("l1"),
+            productId: "p1",
+            expectedQuantity: 5,
+            actualQuantity: 3,
+        };
+        expect(hasDiscrepancy(line)).toBe(true);
+    });
+
+    it("discrepancy when actual is 0 and expected is positive", () => {
+        const line = {
+            ...createEmptyLine("l1"),
+            productId: "p1",
+            expectedQuantity: 5,
+            actualQuantity: 0,
+        };
+        expect(hasDiscrepancy(line)).toBe(true);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// createReconciliationStepSchema
+// ---------------------------------------------------------------------------
+
+describe("createReconciliationStepSchema", () => {
+    const pcs = makeProduct({ id: "pcs-r", unit: "pcs", perishable: false });
+    const kg = makeProduct({ id: "kg-r", unit: "kg", perishable: false });
+    const products: Record<string, Product> = {
+        [pcs.id]: pcs,
+        [kg.id]: kg,
+    };
+    const getProduct = (id: string) => products[id];
+    const schema = createReconciliationStepSchema({ getProduct });
+
+    function baseLine(
+        overrides: Partial<ReturnType<typeof createEmptyLine>> = {},
+    ) {
+        return {
+            ...createEmptyLine("l1"),
+            productId: pcs.id,
+            expectedQuantity: 5,
+            actualQuantity: 5,
+            ...overrides,
+        };
+    }
+
+    it("accepts a line where actual matches expected", () => {
+        expect(schema.safeParse([baseLine()]).success).toBe(true);
+    });
+
+    it("requires discrepancyNote when actual differs from expected", () => {
+        const result = schema.safeParse([baseLine({ actualQuantity: 3 })]);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = issuesOf(result).find(
+                (i) => i.path[0] === 0 && i.path[1] === "discrepancyNote",
+            );
+            expect(issue?.message).toBe("Explain the discrepancy");
+        }
+    });
+
+    it("valid when discrepancy note is provided", () => {
+        expect(
+            schema.safeParse([
+                baseLine({ actualQuantity: 3, discrepancyNote: "damaged" }),
+            ]).success,
+        ).toBe(true);
+    });
+
+    it("rejects whitespace-only discrepancyNote", () => {
+        const result = schema.safeParse([
+            baseLine({ actualQuantity: 3, discrepancyNote: "   " }),
+        ]);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = issuesOf(result).find(
+                (i) => i.path[0] === 0 && i.path[1] === "discrepancyNote",
+            );
+            expect(issue).toBeDefined();
+        }
+    });
+
+    it("rejects null actual with 'Enter the actual quantity'", () => {
+        const result = schema.safeParse([baseLine({ actualQuantity: null })]);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = issuesOf(result).find(
+                (i) => i.path[0] === 0 && i.path[1] === "actualQuantity",
+            );
+            expect(issue?.message).toBe("Enter the actual quantity");
+        }
+    });
+
+    it("rejects all-zero actual quantities with 'Nothing to receive' on empty path", () => {
+        // expectedQuantity=0 matches actualQuantity=0 → no discrepancy, no note required
+        const result = schema.safeParse([
+            baseLine({ expectedQuantity: 0, actualQuantity: 0 }),
+        ]);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = issuesOf(result).find((i) => i.path.length === 0);
+            expect(issue?.message).toMatch(/Nothing to receive/);
+        }
+    });
+
+    it("does not produce 'Nothing to receive' when a known line is positive and an unknown-product line is not", () => {
+        const lines = [
+            {
+                ...createEmptyLine("l1"),
+                productId: "unknown-id",
+                expectedQuantity: 5,
+                actualQuantity: 0,
+            },
+            baseLine({ id: "l2" }),
+        ];
+        expect(schema.safeParse(lines).success).toBe(true);
+    });
+
+    it("pcs: rejects fractional actual quantity", () => {
+        // actualQuantity=1.5 equals expectedQuantity=1.5 → no discrepancy, isolates precision error
+        const result = schema.safeParse([
+            baseLine({ expectedQuantity: 1.5, actualQuantity: 1.5 }),
+        ]);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = issuesOf(result).find(
+                (i) => i.path[0] === 0 && i.path[1] === "actualQuantity",
+            );
+            expect(issue?.message).toMatch(/whole number/i);
+        }
+    });
+
+    it("pcs: accepts whole-number actual quantity (control)", () => {
+        expect(schema.safeParse([baseLine()]).success).toBe(true);
+    });
+
+    it("kg: accepts 3-decimal actual quantity", () => {
+        expect(
+            schema.safeParse([
+                {
+                    ...createEmptyLine("l1"),
+                    productId: kg.id,
+                    expectedQuantity: 1.123,
+                    actualQuantity: 1.123,
+                },
+            ]).success,
+        ).toBe(true);
+    });
+
+    it("kg: rejects 4-decimal actual quantity", () => {
+        const result = schema.safeParse([
+            {
+                ...createEmptyLine("l1"),
+                productId: kg.id,
+                expectedQuantity: 1.1234,
+                actualQuantity: 1.1234,
+            },
+        ]);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = issuesOf(result).find(
+                (i) => i.path[0] === 0 && i.path[1] === "actualQuantity",
+            );
+            expect(issue?.message).toMatch(/3 decimal/i);
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildReceiptPayload
+// ---------------------------------------------------------------------------
+
+describe("buildReceiptPayload", () => {
+    const baseDoc = {
+        supplierId: "sup-1",
+        invoiceNumber: "INV-001",
+        date: "2026-11-12",
+    };
+
+    function makeDraft(
+        lineOverrides: Partial<ReturnType<typeof createEmptyLine>> = {},
+    ): ReceiptDraft {
+        return {
+            step: "reconciliation",
+            document: baseDoc,
+            lines: [
+                {
+                    ...createEmptyLine("l1"),
+                    productId: "p1",
+                    expectedQuantity: 10,
+                    actualQuantity: 10,
+                    ...lineOverrides,
+                },
+            ],
+        };
+    }
+
+    it("resolves actual from expectedQuantity when actualQuantity is undefined", () => {
+        const draft: ReceiptDraft = {
+            step: "reconciliation",
+            document: baseDoc,
+            lines: [
+                {
+                    ...createEmptyLine("l1"),
+                    productId: "p1",
+                    expectedQuantity: 10,
+                    // actualQuantity intentionally absent
+                },
+            ],
+        };
+        const payload = buildReceiptPayload(draft);
+        expect(payload.lines[0].actualQuantity).toBe(10);
+    });
+
+    it("includes discrepancyNote only when there is a discrepancy, trimmed", () => {
+        const payload = buildReceiptPayload(
+            makeDraft({ actualQuantity: 8, discrepancyNote: "  damaged  " }),
+        );
+        expect(payload.lines[0].discrepancyNote).toBe("damaged");
+    });
+
+    it("omits discrepancyNote when actual matches expected (no discrepancy)", () => {
+        const payload = buildReceiptPayload(
+            makeDraft({
+                actualQuantity: 10,
+                discrepancyNote: "this should not appear",
+            }),
+        );
+        expect(payload.lines[0].discrepancyNote).toBeUndefined();
+    });
+
+    it("omits batch when empty string", () => {
+        const payload = buildReceiptPayload(makeDraft({ batch: "" }));
+        expect(payload.lines[0].batch).toBeUndefined();
+    });
+
+    it("includes batch when non-empty", () => {
+        const payload = buildReceiptPayload(makeDraft({ batch: "B001" }));
+        expect(payload.lines[0].batch).toBe("B001");
+    });
+
+    it("omits expiryDate when empty string", () => {
+        const payload = buildReceiptPayload(makeDraft({ expiryDate: "" }));
+        expect(payload.lines[0].expiryDate).toBeUndefined();
+    });
+
+    it("includes expiryDate when non-empty", () => {
+        const payload = buildReceiptPayload(
+            makeDraft({ expiryDate: "2027-01-01" }),
+        );
+        expect(payload.lines[0].expiryDate).toBe("2027-01-01");
+    });
+
+    it("skips lines with null expectedQuantity", () => {
+        const draft: ReceiptDraft = {
+            step: "reconciliation",
+            document: baseDoc,
+            lines: [
+                {
+                    ...createEmptyLine("l1"),
+                    productId: "p1",
+                    expectedQuantity: null,
+                    actualQuantity: 5,
+                },
+                {
+                    ...createEmptyLine("l2"),
+                    productId: "p2",
+                    expectedQuantity: 5,
+                    actualQuantity: 5,
+                },
+            ],
+        };
+        const payload = buildReceiptPayload(draft);
+        expect(payload.lines).toHaveLength(1);
+        expect(payload.lines[0].productId).toBe("p2");
+    });
+
+    it("skips lines with null actualQuantity", () => {
+        const draft: ReceiptDraft = {
+            step: "reconciliation",
+            document: baseDoc,
+            lines: [
+                {
+                    ...createEmptyLine("l1"),
+                    productId: "p1",
+                    expectedQuantity: 10,
+                    actualQuantity: null,
+                },
+                {
+                    ...createEmptyLine("l2"),
+                    productId: "p2",
+                    expectedQuantity: 5,
+                    actualQuantity: 5,
+                },
+            ],
+        };
+        const payload = buildReceiptPayload(draft);
+        expect(payload.lines).toHaveLength(1);
+        expect(payload.lines[0].productId).toBe("p2");
+    });
+});
+
+// ---------------------------------------------------------------------------
+// receiptPayloadSchema
+// ---------------------------------------------------------------------------
+
+describe("receiptPayloadSchema", () => {
+    const validPayload = {
+        supplierId: "sup-1",
+        invoiceNumber: "INV-001",
+        date: "2026-11-12",
+        lines: [
+            {
+                productId: "p1",
+                expectedQuantity: 10,
+                actualQuantity: 10,
+            },
+        ],
+    };
+
+    it("accepts a valid payload", () => {
+        expect(receiptPayloadSchema.safeParse(validPayload).success).toBe(true);
+    });
+
+    it("requires discrepancyNote when actual differs from expected", () => {
+        const result = receiptPayloadSchema.safeParse({
+            ...validPayload,
+            lines: [
+                { productId: "p1", expectedQuantity: 10, actualQuantity: 8 },
+            ],
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = result.error.issues.find(
+                (i) =>
+                    i.path[0] === "lines" &&
+                    i.path[1] === 0 &&
+                    i.path[2] === "discrepancyNote",
+            );
+            expect(issue).toBeDefined();
+        }
+    });
+
+    it("valid when discrepancy has a note (control)", () => {
+        expect(
+            receiptPayloadSchema.safeParse({
+                ...validPayload,
+                lines: [
+                    {
+                        productId: "p1",
+                        expectedQuantity: 10,
+                        actualQuantity: 8,
+                        discrepancyNote: "short delivery",
+                    },
+                ],
+            }).success,
+        ).toBe(true);
+    });
+
+    it("forbids discrepancyNote when actual matches expected", () => {
+        const result = receiptPayloadSchema.safeParse({
+            ...validPayload,
+            lines: [
+                {
+                    productId: "p1",
+                    expectedQuantity: 10,
+                    actualQuantity: 10,
+                    discrepancyNote: "should not be here",
+                },
+            ],
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = result.error.issues.find(
+                (i) =>
+                    i.path[0] === "lines" &&
+                    i.path[1] === 0 &&
+                    i.path[2] === "discrepancyNote",
+            );
+            expect(issue).toBeDefined();
+        }
+    });
+
+    it("rejects when all actual quantities are 0 (error on ['lines'])", () => {
+        const result = receiptPayloadSchema.safeParse({
+            ...validPayload,
+            lines: [
+                {
+                    productId: "p1",
+                    expectedQuantity: 10,
+                    actualQuantity: 0,
+                    discrepancyNote: "nothing arrived",
+                },
+            ],
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = result.error.issues.find(
+                (i) =>
+                    i.path.length === 1 &&
+                    i.path[0] === "lines" &&
+                    i.message.includes("Nothing to receive"),
+            );
+            expect(issue).toBeDefined();
+        }
+    });
+
+    it("valid when at least one line has positive actual (control)", () => {
+        expect(receiptPayloadSchema.safeParse(validPayload).success).toBe(true);
+    });
+
+    it("rejects expiryDate equal to document date", () => {
+        const result = receiptPayloadSchema.safeParse({
+            ...validPayload,
+            lines: [
+                {
+                    productId: "p1",
+                    expectedQuantity: 10,
+                    actualQuantity: 10,
+                    expiryDate: "2026-11-12",
+                },
+            ],
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = result.error.issues.find(
+                (i) =>
+                    i.path[0] === "lines" &&
+                    i.path[1] === 0 &&
+                    i.path[2] === "expiryDate",
+            );
+            expect(issue?.message).toMatch(/after/i);
+        }
+    });
+
+    it("accepts expiryDate one day after document date", () => {
+        expect(
+            receiptPayloadSchema.safeParse({
+                ...validPayload,
+                lines: [
+                    {
+                        productId: "p1",
+                        expectedQuantity: 10,
+                        actualQuantity: 10,
+                        expiryDate: "2026-11-13",
+                    },
+                ],
+            }).success,
+        ).toBe(true);
+    });
+
+    it("same product twice without batch → duplicate error on second line", () => {
+        const result = receiptPayloadSchema.safeParse({
+            ...validPayload,
+            lines: [
+                { productId: "p1", expectedQuantity: 10, actualQuantity: 10 },
+                { productId: "p1", expectedQuantity: 5, actualQuantity: 5 },
+            ],
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = result.error.issues.find(
+                (i) =>
+                    i.path[0] === "lines" &&
+                    i.path[1] === 1 &&
+                    i.path[2] === "productId",
+            );
+            expect(issue?.message).toMatch(/duplicate/i);
+        }
+    });
+
+    it("same product with two different batches → valid", () => {
+        expect(
+            receiptPayloadSchema.safeParse({
+                ...validPayload,
+                lines: [
+                    {
+                        productId: "p1",
+                        expectedQuantity: 10,
+                        actualQuantity: 10,
+                        batch: "B001",
+                    },
+                    {
+                        productId: "p1",
+                        expectedQuantity: 5,
+                        actualQuantity: 5,
+                        batch: "B002",
+                    },
+                ],
+            }).success,
+        ).toBe(true);
+    });
+
+    it("same product: one line without batch, one with batch → duplicate on second line", () => {
+        const result = receiptPayloadSchema.safeParse({
+            ...validPayload,
+            lines: [
+                { productId: "p1", expectedQuantity: 10, actualQuantity: 10 },
+                {
+                    productId: "p1",
+                    expectedQuantity: 5,
+                    actualQuantity: 5,
+                    batch: "B001",
+                },
+            ],
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const issue = result.error.issues.find(
+                (i) =>
+                    i.path[0] === "lines" &&
+                    i.path[1] === 1 &&
+                    i.path[2] === "productId",
+            );
+            expect(issue?.message).toMatch(/duplicate/i);
+        }
     });
 });
