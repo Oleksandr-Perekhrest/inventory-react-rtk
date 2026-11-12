@@ -11,12 +11,12 @@ import {
 } from "@tanstack/react-table";
 
 // local dependencies
-import type { MovementType } from "@/domain";
 import { Button } from "@/components/ui/button";
 import { hasActiveFilters } from "./journalSearch";
 import type { MovementListItem } from "@/api/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getErrorStatus, getErrorMessage } from "@/api/errors";
+import { MovementTypeBadge } from "@/components/MovementTypeBadge";
 import { useJournalSearch, useJournalMovements } from "./useJournalSearch";
 import {
     Table,
@@ -42,17 +42,6 @@ const BADGE_CLASS =
     "rounded-sm px-1 font-mono text-[11px] font-semibold uppercase tracking-wider";
 const RIGHT_ALIGNED_COLUMNS = new Set(["quantity"]);
 const EMPTY_MOVEMENTS: MovementListItem[] = [];
-
-const TYPE_COLORS: Record<MovementType, string> = {
-    receipt: "bg-primary text-primary-foreground",
-    shipment: "bg-secondary text-secondary-foreground",
-    "write-off": "bg-stock-out text-stock-out-foreground",
-    adjustment: "bg-warning text-warning-foreground",
-};
-
-function TypeBadge({ type }: { type: MovementType }) {
-    return <span className={cn(BADGE_CLASS, TYPE_COLORS[type])}>{type}</span>;
-}
 
 const features = tableFeatures({ rowExpandingFeature });
 const columnHelper = createColumnHelper<typeof features, MovementListItem>();
@@ -102,7 +91,7 @@ const columns = columnHelper.columns([
         id: "type",
         header: "Type",
 
-        cell: (info) => <TypeBadge type={info.getValue()} />,
+        cell: (info) => <MovementTypeBadge type={info.getValue()} />,
     }),
     columnHelper.accessor("product", {
         id: "product",
