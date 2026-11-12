@@ -117,6 +117,8 @@ describe("makeStore preloads draft from storage", () => {
 
 // ---------------------------------------------------------------------------
 // makeStore: listener middleware wires storage on actions
+// RTK calls the effect synchronously before its first internal await, so
+// storage is updated within the same dispatch call.
 // ---------------------------------------------------------------------------
 
 describe("store listener middleware", () => {
@@ -128,22 +130,24 @@ describe("store listener middleware", () => {
         store = makeStore({ storage });
     });
 
-    it("dispatching draftSaved writes the envelope to storage", async () => {
+    it("dispatching draftSaved writes the envelope to storage", () => {
         store.dispatch(draftSaved(draft));
-        // Listener middleware runs synchronously for the default store
         const raw = storage._map.get(DRAFT_STORAGE_KEY);
         expect(raw).toBeDefined();
-        const parsed = JSON.parse(raw!);
-        expect(parsed.version).toBe(DRAFT_VERSION);
-        expect(parsed.draft).toEqual(draft);
+        if (raw !== undefined) {
+            const parsed = JSON.parse(raw);
+            expect(parsed).toMatchObject({ version: DRAFT_VERSION, draft });
+        }
     });
 
-    it("dispatching draftStarted writes the envelope to storage", async () => {
+    it("dispatching draftStarted writes the envelope to storage", () => {
         store.dispatch(draftStarted(draft));
         const raw = storage._map.get(DRAFT_STORAGE_KEY);
         expect(raw).toBeDefined();
-        const parsed = JSON.parse(raw!);
-        expect(parsed.draft).toEqual(draft);
+        if (raw !== undefined) {
+            const parsed = JSON.parse(raw);
+            expect(parsed).toMatchObject({ version: DRAFT_VERSION, draft });
+        }
     });
 
     it("dispatching draftDiscarded removes the key from storage", () => {
