@@ -14,4 +14,5 @@ const extendedApi = baseApi.injectEndpoints({
     }),
 });
 
+export const dashboardApi = extendedApi;
 export const { useGetDashboardQuery } = extendedApi;
