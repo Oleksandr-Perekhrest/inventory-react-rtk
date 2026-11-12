@@ -182,7 +182,10 @@ export function createReconciliationStepSchema({
     getProduct: (id: string) => Product | undefined;
 }) {
     return z.array(receiptLineDraftSchema).superRefine((lines, ctx) => {
-        let hasPositive = false;
+        const hasPositive = lines.some((line) => {
+            const actual = getActualQuantity(line);
+            return actual !== null && actual > 0;
+        });
 
         for (const [i, line] of lines.entries()) {
             const product = getProduct(line.productId);
@@ -190,8 +193,6 @@ export function createReconciliationStepSchema({
 
             const actual = getActualQuantity(line);
             if (actual === null) continue;
-
-            if (actual > 0) hasPositive = true;
 
             validateActualQuantity(actual, product, i, ctx);
 
@@ -222,23 +223,63 @@ export function createReconciliationStepSchema({
     });
 }
 
-export const receiptPayloadSchema = z.object({
-    supplierId: z.string().min(1),
-    invoiceNumber: z.string().min(1),
-    date: z.iso.date(),
-    lines: z
-        .array(
-            z.object({
-                productId: z.string().min(1),
-                expectedQuantity: z.number().gt(0),
-                actualQuantity: z.number().gte(0),
-                batch: z.string().min(1).optional(),
-                expiryDate: z.iso.date().optional(),
-                discrepancyNote: z.string().trim().min(1).max(500).optional(),
-            }),
-        )
-        .min(1),
-});
+export const receiptPayloadSchema = z
+    .object({
+        supplierId: z.string().min(1),
+        invoiceNumber: z.string().min(1),
+        date: z.iso.date(),
+        lines: z
+            .array(
+                z.object({
+                    productId: z.string().min(1),
+                    expectedQuantity: z.number().gt(0),
+                    actualQuantity: z.number().gte(0),
+                    batch: z.string().min(1).optional(),
+                    expiryDate: z.iso.date().optional(),
+                    discrepancyNote: z
+                        .string()
+                        .trim()
+                        .min(1)
+                        .max(500)
+                        .optional(),
+                }),
+            )
+            .min(1),
+    })
+    .superRefine((data, ctx) => {
+        let hasPositive = false;
+
+        for (const [i, line] of data.lines.entries()) {
+            if (line.actualQuantity > 0) hasPositive = true;
+
+            const hasDiscrepancy =
+                line.actualQuantity !== line.expectedQuantity;
+            if (hasDiscrepancy && !line.discrepancyNote) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["lines", i, "discrepancyNote"],
+                    message:
+                        "discrepancyNote is required when actualQuantity differs from expectedQuantity",
+                });
+            }
+            if (!hasDiscrepancy && line.discrepancyNote !== undefined) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["lines", i, "discrepancyNote"],
+                    message:
+                        "discrepancyNote must be absent when actualQuantity matches expectedQuantity",
+                });
+            }
+        }
+
+        if (!hasPositive) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["lines"],
+                message: "Nothing to receive: all actual quantities are 0",
+            });
+        }
+    });
 export type ReceiptPayload = z.infer<typeof receiptPayloadSchema>;
 
 export function buildReceiptPayload(draft: ReceiptDraft): ReceiptPayload {

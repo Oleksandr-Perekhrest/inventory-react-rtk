@@ -40,21 +40,56 @@ export const MovementSchema = z
                     message: "supplierId is required for a receipt",
                 });
             }
-        } else if (data.type === "shipment" || data.type === "write-off") {
-            if (data.quantity >= 0) {
+            if (data.expectedQuantity !== undefined) {
+                const hasDiscrepancy = data.quantity !== data.expectedQuantity;
+                if (hasDiscrepancy && !data.discrepancyNote) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["discrepancyNote"],
+                        message:
+                            "discrepancyNote is required when quantity differs from expectedQuantity",
+                    });
+                }
+                if (!hasDiscrepancy && data.discrepancyNote !== undefined) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["discrepancyNote"],
+                        message:
+                            "discrepancyNote must be absent when quantity matches expectedQuantity",
+                    });
+                }
+            }
+        } else {
+            if (data.expectedQuantity !== undefined) {
                 ctx.addIssue({
                     code: "custom",
-                    path: ["quantity"],
-                    message: `Quantity must be negative for a ${data.type}`,
+                    path: ["expectedQuantity"],
+                    message: "expectedQuantity is only allowed for receipts",
                 });
             }
-        } else if (data.type === "adjustment") {
-            if (data.quantity === 0) {
+            if (data.discrepancyNote !== undefined) {
                 ctx.addIssue({
                     code: "custom",
-                    path: ["quantity"],
-                    message: "Quantity must be non-zero",
+                    path: ["discrepancyNote"],
+                    message: "discrepancyNote is only allowed for receipts",
                 });
+            }
+            if (data.type === "shipment" || data.type === "write-off") {
+                if (data.quantity >= 0) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["quantity"],
+                        message: `Quantity must be negative for a ${data.type}`,
+                    });
+                }
+            } else if (data.type === "adjustment") {
+                if (data.quantity === 0) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["quantity"],
+                        message: "Quantity must be non-zero",
+                    });
+                }
             }
         }
     });
