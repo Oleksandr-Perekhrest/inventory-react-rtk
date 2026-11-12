@@ -65,6 +65,8 @@ export function DemoControls() {
                         <AlertDialogTitle>Reset demo data?</AlertDialogTitle>
                         <AlertDialogDescription>
                             All changes will be replaced with fresh demo data.
+                            Any receiving draft in progress will also be
+                            discarded.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     {error && (

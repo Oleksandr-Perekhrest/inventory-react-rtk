@@ -20,6 +20,60 @@ describe("MovementSchema", () => {
             expect(MovementSchema.safeParse(receipt).success).toBe(true);
         });
 
+        it("accepts receipt with quantity 0", () => {
+            expect(
+                MovementSchema.safeParse({ ...receipt, quantity: 0 }).success,
+            ).toBe(true);
+        });
+
+        it("accepts receipt with no expectedQuantity (seed movement, no discrepancy check)", () => {
+            expect(MovementSchema.safeParse({ ...receipt }).success).toBe(true);
+        });
+
+        it("rejects when expectedQuantity differs from quantity and no discrepancyNote", () => {
+            const result = MovementSchema.safeParse({
+                ...receipt,
+                quantity: 10,
+                expectedQuantity: 5,
+            });
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(
+                    result.error.issues.some(
+                        (i) => i.path[0] === "discrepancyNote",
+                    ),
+                ).toBe(true);
+            }
+        });
+
+        it("accepts when expectedQuantity differs from quantity and discrepancyNote is provided", () => {
+            expect(
+                MovementSchema.safeParse({
+                    ...receipt,
+                    quantity: 10,
+                    expectedQuantity: 5,
+                    discrepancyNote: "extra units found",
+                }).success,
+            ).toBe(true);
+        });
+
+        it("rejects discrepancyNote when expectedQuantity matches quantity", () => {
+            const result = MovementSchema.safeParse({
+                ...receipt,
+                quantity: 10,
+                expectedQuantity: 10,
+                discrepancyNote: "should not be here",
+            });
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(
+                    result.error.issues.some(
+                        (i) => i.path[0] === "discrepancyNote",
+                    ),
+                ).toBe(true);
+            }
+        });
+
         it("rejects receipt with negative quantity", () => {
             const result = MovementSchema.safeParse({
                 ...receipt,
@@ -123,13 +177,50 @@ describe("MovementSchema", () => {
         });
     });
 
+    describe("expectedQuantity and discrepancyNote on non-receipts", () => {
+        for (const type of ["shipment", "write-off", "adjustment"] as const) {
+            const qty = type === "adjustment" ? 5 : -5;
+
+            it(`rejects expectedQuantity on ${type}`, () => {
+                const result = MovementSchema.safeParse({
+                    ...receipt,
+                    type,
+                    quantity: qty,
+                    supplierId: undefined,
+                    expectedQuantity: 10,
+                });
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(
+                        result.error.issues.some(
+                            (i) => i.path[0] === "expectedQuantity",
+                        ),
+                    ).toBe(true);
+                }
+            });
+
+            it(`rejects discrepancyNote on ${type}`, () => {
+                const result = MovementSchema.safeParse({
+                    ...receipt,
+                    type,
+                    quantity: qty,
+                    supplierId: undefined,
+                    discrepancyNote: "should not be here",
+                });
+                expect(result.success).toBe(false);
+                if (!result.success) {
+                    expect(
+                        result.error.issues.some(
+                            (i) => i.path[0] === "discrepancyNote",
+                        ),
+                    ).toBe(true);
+                }
+            });
+        }
+    });
+
     describe("quantity zero", () => {
-        for (const type of [
-            "receipt",
-            "shipment",
-            "write-off",
-            "adjustment",
-        ] as const) {
+        for (const type of ["shipment", "write-off", "adjustment"] as const) {
             it(`rejects quantity 0 for ${type}`, () => {
                 const result = MovementSchema.safeParse({
                     ...receipt,

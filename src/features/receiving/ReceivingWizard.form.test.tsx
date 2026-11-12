@@ -38,7 +38,7 @@ async function goToLinesStep(user: ReturnType<typeof userEvent.setup>) {
     );
     await user.type(screen.getByLabelText("Invoice number"), "INV-TEST-001");
     await user.click(screen.getByRole("button", { name: "Next" }));
-    await screen.findByRole("button", { name: "Continue" });
+    await screen.findByRole("button", { name: "Add line" });
 }
 
 describe("Document step validation (T1)", () => {
@@ -89,7 +89,7 @@ describe("Document step validation (T1)", () => {
 });
 
 describe("Per-step gate regression (T2)", () => {
-    it("2 — filling document step and clicking Next shows the Lines step; typing in quantity shows no errors before Continue is clicked", async () => {
+    it("2 — filling document step and clicking Next shows the Lines step; typing in quantity shows no errors before Next is clicked", async () => {
         const user = userEvent.setup();
         await renderWithRouter("/receiving", {
             store: makeStore({ storage: createMemoryStorage() }),
@@ -102,7 +102,7 @@ describe("Per-step gate regression (T2)", () => {
         const stepItems = within(stepList).getAllByRole("listitem");
         expect(stepItems[1]).toHaveAttribute("aria-current", "step");
 
-        // Typing into quantity does not show validation errors before Continue is clicked
+        // Typing into quantity does not show validation errors before Next is clicked
         const qtyInput = screen.getByLabelText("Expected quantity");
         await user.type(qtyInput, "10");
         expect(
@@ -211,8 +211,8 @@ describe("Continue validation (T5)", () => {
         await screen.findByLabelText("Batch");
         await user.type(screen.getByLabelText("Expected quantity"), "5");
 
-        // Click Continue with empty batch → batch error appears
-        await user.click(screen.getByRole("button", { name: "Continue" }));
+        // Click Next with empty batch → batch error appears
+        await user.click(screen.getByRole("button", { name: "Next" }));
         await screen.findByText("Enter a batch number");
 
         const batchInput = screen.getByLabelText("Batch");
@@ -244,8 +244,8 @@ describe("Continue validation (T5)", () => {
             EXPIRY_DATE,
         );
 
-        // Continue with duplicate batch → error on second row's Product field
-        await user.click(screen.getByRole("button", { name: "Continue" }));
+        // Next with duplicate batch → error on second row's Product field
+        await user.click(screen.getByRole("button", { name: "Next" }));
         await screen.findByText("Duplicate product and batch combination");
         // Only the second row has the error — first row's product combobox is clean
         expect(screen.getAllByRole("combobox")[0]).not.toHaveAttribute(
@@ -262,10 +262,12 @@ describe("Continue validation (T5)", () => {
         await user.clear(updatedBatchInputs[1]);
         await user.type(updatedBatchInputs[1], "BATCH-Y");
 
-        // Continue → success status message
-        await user.click(screen.getByRole("button", { name: "Continue" }));
-        await screen.findByText(
-            "Lines are complete — reconciliation comes in the next stage.",
+        // Next → moves to reconciliation step
+        await user.click(screen.getByRole("button", { name: "Next" }));
+        const stepList = screen.getByRole("list", { name: "Wizard steps" });
+        const stepItems = within(stepList).getAllByRole("listitem");
+        await waitFor(() =>
+            expect(stepItems[2]).toHaveAttribute("aria-current", "step"),
         );
     });
 });

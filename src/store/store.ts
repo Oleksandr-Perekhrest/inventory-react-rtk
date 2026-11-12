@@ -8,6 +8,7 @@ import {
 
 // local dependencies
 import { baseApi } from "../api/baseApi";
+import { demoApi } from "../api/endpoints/demo";
 import type { KeyValueStorage } from "../features/receiving/draftStorage";
 import { categoryTreeSlice } from "../features/category-tree/categoryTreeSlice";
 import {
@@ -58,7 +59,10 @@ export function makeStore(options?: { storage?: KeyValueStorage }) {
     });
 
     listenerMiddleware.startListening({
-        actionCreator: draftDiscarded,
+        matcher: isAnyOf(
+            draftDiscarded,
+            demoApi.endpoints.resetDemo.matchFulfilled,
+        ),
         effect: () => {
             clearDraft(storage);
         },
@@ -71,7 +75,7 @@ export function makeStore(options?: { storage?: KeyValueStorage }) {
             receivingDraft: receivingDraftSlice.reducer,
         },
         preloadedState: {
-            receivingDraft: { draft: loadDraft(storage) },
+            receivingDraft: { draft: loadDraft(storage), resetNonce: 0 },
         },
         middleware: (getDefaultMiddleware) =>
             getDefaultMiddleware()

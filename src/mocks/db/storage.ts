@@ -30,7 +30,7 @@ export function createMemoryStorage(): KeyValueStorage {
 
 export const STORAGE_KEY = "warehouse-manager:db";
 // DB_VERSION must be bumped whenever the shape of stored data changes
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 const EnvelopeSchema = z.object({
     version: z.literal(DB_VERSION),

@@ -15,6 +15,7 @@ export type Db = {
     readonly products: ReadonlyArray<Readonly<Product>>;
     readonly suppliers: ReadonlyArray<Readonly<Supplier>>;
     readonly movements: ReadonlyArray<Readonly<Movement>>;
+    now: () => Date;
     transaction<T>(fn: (state: DbState) => T): T;
     reset(): void;
 };
@@ -56,6 +57,7 @@ export function createDb({
         get movements() {
             return state.movements as ReadonlyArray<Readonly<Movement>>;
         },
+        now,
 
         transaction<T>(fn: (draft: DbState) => T): T {
             const draft = structuredClone(state);

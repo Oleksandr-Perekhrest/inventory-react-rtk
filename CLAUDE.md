@@ -94,6 +94,9 @@ import { formatPrice } from "../../utils/format";
 
 `src/store/store.ts` — `makeStore()` wires the api reducer and middleware, calls `setupListeners`. `src/store/hooks.ts` — typed `useAppDispatch` and `useAppSelector` via `withTypes`.
 
+- Mutations: `invalidatesTags` returns `[]` on error (never invalidate on a failed write).
+- Movement dates from a local date + "now": use `combineLocalDateWithTime` (`src/lib/date.ts`), never `date + toISOString().slice(10)`.
+
 ## Mock API
 
 Requests flow: **MSW handler → `route()` (network simulation, validation, error mapping) → controller (pure function over the db)**.
@@ -115,6 +118,13 @@ ANALYZE=1 pnpm build   # writes stats.html (gitignored)
 
 Open `stats.html` in a browser to see the interactive treemap. Main browser-chunk cost: `tldts` (TLD trie from MSW's `tough-cookie`) ≈ 111 KB gz, Zod ≈ 34 KB gz, `@mswjs/interceptors` ≈ 24 KB gz. The 500 kB build warning for the lazy `browser-*.js` chunk is expected — MSW pulls in `tldts` through `tough-cookie`; a 500 kB warning on any other chunk is a real problem.
 
+## Receiving wizard
+
+- **Step validation:** validation issues with an empty field path go to the form-level error (`{ form, fields }`), never to a parent array field like `"lines"` — a parent-field `onSubmit` error is not cleared by editing child fields and permanently blocks the next submit.
+- **Server field errors (e.g. 409 `DUPLICATE_INVOICE`):** keep them in React state on the wizard and render through `FormField`; do not write TanStack field meta from async callbacks — the field may not be registered if its step was never rendered in this session (restored draft).
+- **Focus after step change:** run in an effect after render (guarded by a ref), not in `queueMicrotask`.
+- **Leaving the wizard programmatically** (success, Discard, Reset demo data): call `innerRef.cancelSync()` first, then discard the draft, then remount via `formKey` — otherwise the unmount flush writes the stale draft back.
+
 ## Working rules
 
 - Do NOT commit or push; the developer commits after reviewing.
@@ -123,3 +133,5 @@ Open `stats.html` in a browser to see the interactive treemap. Main browser-chun
 - For library and GitHub Action versions, check current releases (e.g. `pnpm view <pkg> version`, `gh release view --repo <owner/action>`) instead of relying on memory.
 - Before reporting, run the available checks: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`.
 - Report format: files changed (one line each), check results, anything skipped or not done.
+- Wizard UI tests start from a draft pre-seeded in storage at the target step (see `ReceivingWizard.posting.test.tsx`) instead of typing through earlier steps.
+- A test that pins a bug fix must be shown to fail without the fix before it is committed.

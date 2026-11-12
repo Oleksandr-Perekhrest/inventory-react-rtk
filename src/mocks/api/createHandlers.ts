@@ -7,8 +7,10 @@ import type { Db } from "../db";
 import { createRouteHandler } from "./route";
 import { demoReset } from "./controllers/demo";
 import type { NetworkConfig } from "./network";
+import { postReceipt } from "./controllers/receipts";
 import { listMovements } from "./controllers/movements";
 import { listSuppliers } from "./controllers/suppliers";
+import { receiptPayloadSchema } from "../../domain/receiving";
 import {
     listCategories,
     moveCategoryController,
@@ -39,6 +41,10 @@ export function createHandlers({
 
     return [
         http.post("/api/demo/reset", route(demoReset)),
+        http.post(
+            "/api/receipts",
+            route(postReceipt, { bodySchema: receiptPayloadSchema }),
+        ),
         http.get(
             "/api/categories",
             route(listCategories, { querySchema: categoriesQuerySchema }),

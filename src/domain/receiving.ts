@@ -2,15 +2,22 @@
 import * as z from "zod";
 
 // local dependencies
-import type { Product } from "./product";
+import type { Unit, Product } from "./product";
 
-export const RECEIVING_STEPS = ["document", "lines"] as const;
+export const RECEIVING_STEPS = [
+    "document",
+    "lines",
+    "reconciliation",
+    "review",
+] as const;
 export type ReceivingStep = (typeof RECEIVING_STEPS)[number];
 
 export const receiptLineDraftSchema = z.object({
     id: z.string(),
     productId: z.string(),
     expectedQuantity: z.number().nullable(),
+    actualQuantity: z.number().nullable().optional(),
+    discrepancyNote: z.string().optional(),
     batch: z.string(),
     expiryDate: z.string(),
 });
@@ -35,6 +42,17 @@ export function createEmptyLine(id: string): ReceiptLineDraft {
         batch: "",
         expiryDate: "",
     };
+}
+
+export function getActualQuantity(line: ReceiptLineDraft): number | null {
+    if (line.actualQuantity === undefined) return line.expectedQuantity;
+    return line.actualQuantity;
+}
+
+export function hasDiscrepancy(line: ReceiptLineDraft): boolean {
+    const actual = getActualQuantity(line);
+    if (actual === null) return false;
+    return actual !== line.expectedQuantity;
 }
 
 export function getNextStep(step: ReceivingStep): ReceivingStep | null {
@@ -161,6 +179,195 @@ export function createLinesStepSchema({
     });
 }
 
+export function createReconciliationStepSchema({
+    getProduct,
+}: {
+    getProduct: (id: string) => Product | undefined;
+}) {
+    return z.array(receiptLineDraftSchema).superRefine((lines, ctx) => {
+        const hasPositive = lines.some((line) => {
+            const actual = getActualQuantity(line);
+            return actual !== null && actual > 0;
+        });
+
+        for (const [i, line] of lines.entries()) {
+            const product = getProduct(line.productId);
+            if (!product) continue;
+
+            const actual = getActualQuantity(line);
+            if (actual === null) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: [i, "actualQuantity"],
+                    message: "Enter the actual quantity",
+                });
+                continue;
+            }
+
+            validateActualQuantity(actual, product, i, ctx);
+
+            if (hasDiscrepancy(line)) {
+                const note = line.discrepancyNote?.trim() ?? "";
+                if (!note) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: [i, "discrepancyNote"],
+                        message: "Explain the discrepancy",
+                    });
+                } else if (note.length > 500) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: [i, "discrepancyNote"],
+                        message: "Note must be 500 characters or fewer",
+                    });
+                }
+            }
+        }
+
+        if (!hasPositive) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Nothing to receive: all actual quantities are 0",
+            });
+        }
+    });
+}
+
+export const receiptPayloadSchema = z
+    .object({
+        supplierId: z.string().min(1),
+        invoiceNumber: z.string().min(1),
+        date: z.iso.date(),
+        lines: z
+            .array(
+                z.object({
+                    productId: z.string().min(1),
+                    expectedQuantity: z.number().gt(0),
+                    actualQuantity: z.number().gte(0),
+                    batch: z.string().min(1).optional(),
+                    expiryDate: z.iso.date().optional(),
+                    discrepancyNote: z
+                        .string()
+                        .trim()
+                        .min(1)
+                        .max(500)
+                        .optional(),
+                }),
+            )
+            .min(1),
+    })
+    .superRefine((data, ctx) => {
+        let hasPositive = false;
+
+        for (const [i, line] of data.lines.entries()) {
+            if (line.actualQuantity > 0) hasPositive = true;
+
+            const hasDiscrepancy =
+                line.actualQuantity !== line.expectedQuantity;
+            if (hasDiscrepancy && !line.discrepancyNote) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["lines", i, "discrepancyNote"],
+                    message:
+                        "discrepancyNote is required when actualQuantity differs from expectedQuantity",
+                });
+            }
+            if (!hasDiscrepancy && line.discrepancyNote !== undefined) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["lines", i, "discrepancyNote"],
+                    message:
+                        "discrepancyNote must be absent when actualQuantity matches expectedQuantity",
+                });
+            }
+
+            if (line.expiryDate !== undefined && line.expiryDate <= data.date) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["lines", i, "expiryDate"],
+                    message: "Expiry date must be after the document date",
+                });
+            }
+        }
+
+        if (!hasPositive) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["lines"],
+                message: "Nothing to receive: all actual quantities are 0",
+            });
+        }
+
+        const seen = new Map<string, Array<string | null>>();
+        for (const [i, line] of data.lines.entries()) {
+            const prev = seen.get(line.productId) ?? [];
+            const batch = line.batch ?? null;
+
+            const isDuplicate =
+                batch === null
+                    ? prev.length > 0
+                    : prev.some((b) => b === null || b === batch);
+
+            if (isDuplicate) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["lines", i, "productId"],
+                    message: "Duplicate product and batch combination",
+                });
+            } else {
+                seen.set(line.productId, [...prev, batch]);
+            }
+        }
+    });
+export type ReceiptPayload = z.infer<typeof receiptPayloadSchema>;
+
+export function buildReceiptPayload(draft: ReceiptDraft): ReceiptPayload {
+    return {
+        supplierId: draft.document.supplierId,
+        invoiceNumber: draft.document.invoiceNumber,
+        date: draft.document.date,
+        lines: draft.lines.flatMap((line) => {
+            const expectedQuantity = line.expectedQuantity;
+            if (expectedQuantity === null) return [];
+            const actualQuantity = getActualQuantity(line);
+            if (actualQuantity === null) return [];
+            const payloadLine: ReceiptPayload["lines"][number] = {
+                productId: line.productId,
+                expectedQuantity,
+                actualQuantity,
+            };
+            if (line.batch) payloadLine.batch = line.batch;
+            if (line.expiryDate) payloadLine.expiryDate = line.expiryDate;
+            if (hasDiscrepancy(line)) {
+                const note = line.discrepancyNote?.trim();
+                if (note) payloadLine.discrepancyNote = note;
+            }
+            return [payloadLine];
+        }),
+    };
+}
+
+export function unitPrecisionError(qty: number, unit: Unit): string | null {
+    if (unit === "pcs" || unit === "box") {
+        return Number.isInteger(qty) ? null : "Quantity must be a whole number";
+    }
+    return Number(qty.toFixed(3)) === qty
+        ? null
+        : "Quantity can have at most 3 decimal places";
+}
+
+function checkUnitPrecision(
+    qty: number,
+    product: Product,
+    path: (number | string)[],
+    ctx: z.RefinementCtx,
+): void {
+    const msg = unitPrecisionError(qty, product.unit);
+    if (msg !== null) {
+        ctx.addIssue({ code: "custom", path, message: msg });
+    }
+}
+
 function validateQuantity(
     qty: number | null,
     product: Product,
@@ -191,23 +398,32 @@ function validateQuantity(
         });
         return;
     }
-    if (product.unit === "pcs" || product.unit === "box") {
-        if (!Number.isInteger(qty)) {
-            ctx.addIssue({
-                code: "custom",
-                path: [i, "expectedQuantity"],
-                message: "Quantity must be a whole number",
-            });
-        }
-    } else {
-        if (Number(qty.toFixed(3)) !== qty) {
-            ctx.addIssue({
-                code: "custom",
-                path: [i, "expectedQuantity"],
-                message: "Quantity can have at most 3 decimal places",
-            });
-        }
+    checkUnitPrecision(qty, product, [i, "expectedQuantity"], ctx);
+}
+
+function validateActualQuantity(
+    qty: number,
+    product: Product,
+    i: number,
+    ctx: z.RefinementCtx,
+): void {
+    if (qty < 0) {
+        ctx.addIssue({
+            code: "custom",
+            path: [i, "actualQuantity"],
+            message: "Quantity cannot be negative",
+        });
+        return;
     }
+    if (qty > 100000) {
+        ctx.addIssue({
+            code: "custom",
+            path: [i, "actualQuantity"],
+            message: "Quantity must be 100,000 or less",
+        });
+        return;
+    }
+    checkUnitPrecision(qty, product, [i, "actualQuantity"], ctx);
 }
 
 function validateBatch(batch: string, i: number, ctx: z.RefinementCtx): void {
