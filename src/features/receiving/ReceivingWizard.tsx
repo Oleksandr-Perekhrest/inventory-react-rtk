@@ -1,6 +1,6 @@
 // outsource dependencies
 import type { Ref } from "react";
-import { useBlocker } from "@tanstack/react-router";
+import { Link, useBlocker } from "@tanstack/react-router";
 import {
     useId,
     useRef,
@@ -17,11 +17,13 @@ import { FormField } from "./FormField";
 import { toLocalIsoDate } from "@/lib/date";
 import { useDraftSync } from "./useDraftSync";
 import { Input } from "@/components/ui/input";
-import { getErrorMessage } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import type { Supplier } from "@/domain/supplier";
+import type { ReceiptResponse } from "@/api/types";
 import { ProductCombobox } from "./ProductCombobox";
+import { isApiErrorData, getErrorMessage } from "@/api/errors";
 import { useGetSuppliersQuery } from "@/api/endpoints/suppliers";
+import { usePostReceiptMutation } from "@/api/endpoints/receipts";
 import { useReceivingForm, type ReceivingForm } from "./useReceivingForm";
 import { productsApi, useGetProductQuery } from "@/api/endpoints/products";
 import { useAppStore, useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -56,6 +58,7 @@ import {
     createEmptyDraft,
     getActualQuantity,
     type ReceivingStep,
+    buildReceiptPayload,
     type ReceiptLineDraft,
 } from "@/domain/receiving";
 
@@ -90,11 +93,14 @@ function formatDiff(diff: number, unit: string): string {
 
 type InnerHandle = { cancelSync: () => void };
 
+type PostedState = { response: ReceiptResponse; supplierName: string };
+
 export function ReceivingWizard() {
     const hasDraft = useAppSelector(selectHasReceivingDraft);
     const dispatch = useAppDispatch();
     const [formKey, setFormKey] = useState(0);
     const [discardOpen, setDiscardOpen] = useState(false);
+    const [posted, setPosted] = useState<PostedState | null>(null);
     const headingRef = useRef<HTMLHeadingElement>(null);
     const innerRef = useRef<InnerHandle>(null);
 
@@ -108,6 +114,23 @@ export function ReceivingWizard() {
         });
     }, [dispatch]);
 
+    const handlePosted = useCallback(
+        (response: ReceiptResponse, supplierName: string) => {
+            innerRef.current?.cancelSync();
+            dispatch(draftDiscarded());
+            setPosted({ response, supplierName });
+        },
+        [dispatch],
+    );
+
+    const handleNewReceipt = useCallback(() => {
+        setPosted(null);
+        setFormKey((k) => k + 1);
+        queueMicrotask(() => {
+            headingRef.current?.focus();
+        });
+    }, []);
+
     return (
         <div className="p-6">
             <div className="mb-6 flex items-center justify-between gap-4">
@@ -118,7 +141,7 @@ export function ReceivingWizard() {
                 >
                     Receiving
                 </h1>
-                {hasDraft && (
+                {hasDraft && !posted && (
                     <Button
                         type="button"
                         variant="outline"
@@ -129,7 +152,15 @@ export function ReceivingWizard() {
                 )}
             </div>
 
-            <ReceivingWizardInner key={formKey} ref={innerRef} />
+            {posted ? (
+                <SuccessView posted={posted} onNewReceipt={handleNewReceipt} />
+            ) : (
+                <ReceivingWizardInner
+                    key={formKey}
+                    ref={innerRef}
+                    onPosted={handlePosted}
+                />
+            )}
 
             <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
                 <AlertDialogContent>
@@ -153,7 +184,74 @@ export function ReceivingWizard() {
     );
 }
 
-function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
+type SuccessViewProps = {
+    posted: PostedState;
+    onNewReceipt: () => void;
+};
+
+function SuccessView({ posted, onNewReceipt }: SuccessViewProps) {
+    const headingRef = useRef<HTMLHeadingElement>(null);
+
+    useEffect(() => {
+        headingRef.current?.focus();
+    }, []);
+
+    const { response, supplierName } = posted;
+
+    return (
+        <div className="mx-auto flex max-w-xl flex-col gap-6">
+            <div className="rounded-sm border border-border bg-card p-6">
+                <h2
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="mb-4 text-lg font-semibold outline-none"
+                >
+                    Receipt posted
+                </h2>
+                <dl className="flex flex-col gap-2 text-sm">
+                    <div className="flex gap-2">
+                        <dt className="text-muted-foreground">Invoice</dt>
+                        <dd className="font-mono">{response.invoiceNumber}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                        <dt className="text-muted-foreground">Supplier</dt>
+                        <dd>{supplierName}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                        <dt className="text-muted-foreground">Date</dt>
+                        <dd className="font-mono">{response.date}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                        <dt className="text-muted-foreground">Lines</dt>
+                        <dd>
+                            {response.lineCount}{" "}
+                            {response.lineCount === 1 ? "line" : "lines"}{" "}
+                            &middot; {response.discrepancyCount} with{" "}
+                            {response.discrepancyCount === 1
+                                ? "discrepancy"
+                                : "discrepancies"}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={onNewReceipt}>
+                    New receipt
+                </Button>
+                <Button type="button" variant="outline" asChild>
+                    <Link to="/catalog">Go to catalog</Link>
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+type InnerProps = {
+    ref: Ref<InnerHandle>;
+    onPosted: (response: ReceiptResponse, supplierName: string) => void;
+};
+
+function ReceivingWizardInner({ ref, onPosted }: InnerProps) {
     const dispatch = useAppDispatch();
     const persistedDraft = useAppSelector(selectReceivingDraft);
     const store = useAppStore();
@@ -174,6 +272,11 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
         [supplierIdSet],
     );
 
+    const [postReceipt] = usePostReceiptMutation();
+    const [isPosting, setIsPosting] = useState(false);
+    const [postError, setPostError] = useState<string | null>(null);
+
+    const invoiceNumberRef = useRef<HTMLInputElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
 
     const { form } = useReceivingForm({
@@ -188,6 +291,40 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
             });
         },
     });
+
+    const handlePost = useCallback(async () => {
+        setPostError(null);
+        setIsPosting(true);
+        const values = form.state.values;
+        const payload = buildReceiptPayload(values);
+        try {
+            const response = await postReceipt(payload).unwrap();
+            const supplierName =
+                suppliers?.find((s) => s.id === values.document.supplierId)
+                    ?.name ?? values.document.supplierId;
+            onPosted(response, supplierName);
+        } catch (err) {
+            if (
+                isApiErrorData(err) &&
+                err.status === 409 &&
+                err.code === "DUPLICATE_INVOICE"
+            ) {
+                form.setFieldValue("step", "document");
+                form.setFieldMeta("document.invoiceNumber", (prev) => ({
+                    ...prev,
+                    errorMap: { ...prev.errorMap, onServer: err.message },
+                }));
+                queueMicrotask(() => {
+                    invoiceNumberRef.current?.focus();
+                });
+            } else {
+                setPostError(
+                    getErrorMessage(isApiErrorData(err) ? err : undefined),
+                );
+            }
+            setIsPosting(false);
+        }
+    }, [form, postReceipt, suppliers, onPosted]);
 
     const draftSync = useDraftSync(form);
 
@@ -255,10 +392,18 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
                     selector={(state) => ({
                         step: state.values.step,
                         lines: state.values.lines,
+                        supplierId: state.values.document.supplierId,
+                        invoiceNumber: state.values.document.invoiceNumber,
                         documentDate: state.values.document.date,
                     })}
                 >
-                    {({ step: currentStep, documentDate, lines }) =>
+                    {({
+                        step: currentStep,
+                        documentDate,
+                        lines,
+                        supplierId,
+                        invoiceNumber,
+                    }) =>
                         currentStep === "document" ? (
                             <DocumentStep
                                 form={form}
@@ -266,6 +411,7 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
                                 suppliersLoading={suppliersQuery.isLoading}
                                 suppliersError={suppliersQuery.error}
                                 refetchSuppliers={suppliersQuery.refetch}
+                                invoiceNumberRef={invoiceNumberRef}
                             />
                         ) : currentStep === "lines" ? (
                             <LinesStep
@@ -276,7 +422,13 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
                         ) : currentStep === "reconciliation" ? (
                             <ReconciliationStep form={form} lines={lines} />
                         ) : (
-                            <ReviewStep />
+                            <ReviewStep
+                                suppliers={suppliers}
+                                supplierId={supplierId}
+                                invoiceNumber={invoiceNumber}
+                                date={documentDate}
+                                lines={lines}
+                            />
                         )
                     }
                 </form.Subscribe>
@@ -290,6 +442,7 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
                     {({ step, isSubmitting }) => {
                         const back = getPreviousStep(step);
                         const next = getNextStep(step);
+                        const isReview = step === "review";
                         const suppliersUnavailable =
                             step === "document" &&
                             (suppliersQuery.isLoading ||
@@ -300,7 +453,9 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        disabled={!back}
+                                        disabled={
+                                            !back || isSubmitting || isPosting
+                                        }
                                         onClick={() => {
                                             if (back) {
                                                 form.setFieldValue(
@@ -322,8 +477,26 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
                                         >
                                             Next
                                         </Button>
+                                    ) : isReview ? (
+                                        <Button
+                                            type="button"
+                                            onClick={handlePost}
+                                            disabled={isPosting}
+                                        >
+                                            {isPosting
+                                                ? "Posting…"
+                                                : "Post receipt"}
+                                        </Button>
                                     ) : null}
                                 </div>
+                                {isReview && postError && (
+                                    <p
+                                        role="alert"
+                                        className="text-sm text-destructive"
+                                    >
+                                        {postError}
+                                    </p>
+                                )}
                                 {step === "reconciliation" && (
                                     <form.Field name="lines">
                                         {(f) => {
@@ -410,6 +583,7 @@ type DocumentStepProps = {
     suppliersLoading: boolean;
     suppliersError: ReturnType<typeof useGetSuppliersQuery>["error"];
     refetchSuppliers: () => void;
+    invoiceNumberRef: React.RefObject<HTMLInputElement | null>;
 };
 
 function DocumentStep({
@@ -418,6 +592,7 @@ function DocumentStep({
     suppliersLoading,
     suppliersError,
     refetchSuppliers,
+    invoiceNumberRef,
 }: DocumentStepProps) {
     return (
         <div className="flex flex-col gap-4 rounded-sm border border-border bg-card p-4">
@@ -504,11 +679,20 @@ function DocumentStep({
                         {(fieldProps) => (
                             <Input
                                 {...fieldProps}
+                                ref={invoiceNumberRef}
                                 name={field.name}
                                 value={field.state.value}
-                                onChange={(event) =>
-                                    field.handleChange(event.target.value)
-                                }
+                                onChange={(event) => {
+                                    field.handleChange(event.target.value);
+                                    if (
+                                        field.state.meta.errorMap.onServer !==
+                                        undefined
+                                    ) {
+                                        field.setErrorMap({
+                                            onServer: undefined,
+                                        });
+                                    }
+                                }}
                                 onBlur={field.handleBlur}
                             />
                         )}
@@ -1001,10 +1185,129 @@ function ReconciliationRow({ form, i, line }: ReconciliationRowProps) {
     );
 }
 
-function ReviewStep() {
+type ReviewStepProps = {
+    suppliers: Supplier[] | undefined;
+    supplierId: string;
+    invoiceNumber: string;
+    date: string;
+    lines: ReceiptLineDraft[];
+};
+
+function ReviewStep({
+    suppliers,
+    supplierId,
+    invoiceNumber,
+    date,
+    lines,
+}: ReviewStepProps) {
+    const supplierName =
+        suppliers?.find((s) => s.id === supplierId)?.name ?? supplierId;
+    const discrepancyCount = lines.filter(hasDiscrepancy).length;
+
     return (
-        <div className="rounded-sm border border-border bg-card p-4">
-            <h2 className="text-lg font-semibold">Review</h2>
+        <div className="flex flex-col gap-4">
+            <div className="rounded-sm border border-border bg-card p-4">
+                <dl className="flex flex-col gap-1.5 text-sm">
+                    <div className="flex gap-2">
+                        <dt className="text-muted-foreground">Supplier</dt>
+                        <dd>{supplierName}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                        <dt className="text-muted-foreground">Invoice</dt>
+                        <dd className="font-mono">{invoiceNumber}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                        <dt className="text-muted-foreground">Date</dt>
+                        <dd className="font-mono">{date}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-[520px] w-full border-collapse text-sm">
+                    <thead>
+                        <tr className="border-b border-border">
+                            <th className="py-2 pr-4 text-left font-mono text-xs text-muted-foreground">
+                                Product
+                            </th>
+                            <th className="whitespace-nowrap py-2 pr-4 text-right font-mono text-xs text-muted-foreground">
+                                Expected
+                            </th>
+                            <th className="whitespace-nowrap py-2 pr-4 text-right font-mono text-xs text-muted-foreground">
+                                Actual
+                            </th>
+                            <th className="whitespace-nowrap py-2 pr-4 text-right font-mono text-xs text-muted-foreground">
+                                Diff
+                            </th>
+                            <th className="py-2 text-left font-mono text-xs text-muted-foreground">
+                                Note
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {lines.map((line) => (
+                            <ReviewLineRow key={line.id} line={line} />
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+                {lines.length} {lines.length === 1 ? "line" : "lines"} &middot;{" "}
+                {discrepancyCount} with{" "}
+                {discrepancyCount === 1 ? "discrepancy" : "discrepancies"}
+            </p>
         </div>
+    );
+}
+
+function ReviewLineRow({ line }: { line: ReceiptLineDraft }) {
+    const { data: product } = useGetProductQuery(line.productId, {
+        skip: !line.productId,
+    });
+    const actual = getActualQuantity(line);
+    const discrepancy = hasDiscrepancy(line);
+    const unit = product ? formatUnit(product.unit) : "";
+
+    return (
+        <tr
+            data-discrepancy={discrepancy ? "true" : undefined}
+            className={
+                "border-b border-border last:border-0 " +
+                (discrepancy ? "bg-warning" : "")
+            }
+        >
+            <td className="py-2 pr-4 align-top">
+                <div className="font-medium">
+                    {product?.name ?? line.productId}
+                </div>
+                {(line.batch || line.expiryDate) && (
+                    <div className="mt-0.5 flex flex-wrap gap-3 font-mono text-xs text-muted-foreground">
+                        {line.batch && <span>Batch: {line.batch}</span>}
+                        {line.expiryDate && (
+                            <span>Expiry: {line.expiryDate}</span>
+                        )}
+                    </div>
+                )}
+            </td>
+            <td className="whitespace-nowrap py-2 pr-4 text-right font-mono align-top">
+                {line.expectedQuantity !== null
+                    ? `${line.expectedQuantity} ${unit}`
+                    : "—"}
+            </td>
+            <td className="whitespace-nowrap py-2 pr-4 text-right font-mono align-top">
+                {actual !== null ? `${actual} ${unit}` : "—"}
+            </td>
+            <td className="whitespace-nowrap py-2 pr-4 text-right font-mono align-top">
+                {discrepancy &&
+                actual !== null &&
+                line.expectedQuantity !== null
+                    ? formatDiff(actual - line.expectedQuantity, unit)
+                    : "—"}
+            </td>
+            <td className="py-2 align-top text-muted-foreground">
+                {line.discrepancyNote ?? ""}
+            </td>
+        </tr>
     );
 }
