@@ -295,7 +295,7 @@ function ReceivingWizardInner({ ref, onPosted }: InnerProps) {
     const invoiceNumberRef = useRef<HTMLInputElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
 
-    const { form } = useReceivingForm({
+    const { form, changeStep } = useReceivingForm({
         initialDraft,
         supplierExists,
         onInvalid: () => {
@@ -474,10 +474,7 @@ function ReceivingWizardInner({ ref, onPosted }: InnerProps) {
                                         }
                                         onClick={() => {
                                             if (back) {
-                                                form.setFieldValue(
-                                                    "step",
-                                                    back,
-                                                );
+                                                changeStep(back);
                                             }
                                         }}
                                     >

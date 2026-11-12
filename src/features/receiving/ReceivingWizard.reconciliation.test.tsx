@@ -198,6 +198,48 @@ describe("Cleared input (T-R3)", () => {
     });
 });
 
+describe("Error persistence across steps (T-R5)", () => {
+    it("R5 — 'Nothing to receive' alert is visible on reconciliation; after Back it is gone on the lines step", async () => {
+        const { user, pcsRow, kgRow } = await setup();
+
+        const pcsInput = within(pcsRow).getByLabelText("Actual quantity");
+        const kgInput = within(kgRow).getByLabelText("Actual quantity");
+
+        // Set both actuals to 0 and add notes
+        await user.clear(pcsInput);
+        await user.type(pcsInput, "0");
+        const pcsNote =
+            await within(pcsRow).findByLabelText("Discrepancy note");
+        await user.type(pcsNote, "Returned to supplier");
+
+        await user.clear(kgInput);
+        await user.type(kgInput, "0");
+        const kgNote = await within(kgRow).findByLabelText("Discrepancy note");
+        await user.type(kgNote, "Damaged on arrival");
+
+        // Next → "Nothing to receive" alert is visible on reconciliation (control)
+        await user.click(screen.getByRole("button", { name: "Next" }));
+        const alert = await screen.findByRole("alert");
+        expect(alert).toHaveTextContent(
+            "Nothing to receive: all actual quantities are 0",
+        );
+        const stepList = screen.getByRole("list", { name: "Wizard steps" });
+        const stepItems = within(stepList).getAllByRole("listitem");
+        expect(stepItems[2]).toHaveAttribute("aria-current", "step");
+
+        // Click Back → go to lines step; alert must be gone
+        await user.click(screen.getByRole("button", { name: "Back" }));
+        await waitFor(() =>
+            expect(stepItems[1]).toHaveAttribute("aria-current", "step"),
+        );
+        expect(
+            screen.queryByText(
+                "Nothing to receive: all actual quantities are 0",
+            ),
+        ).not.toBeInTheDocument();
+    });
+});
+
 describe("Nothing to receive (T-R4)", () => {
     it("R4 — all actual quantities 0 with notes triggers alert and step stays; setting one positive and Next advances to review", async () => {
         const { user, pcsRow, kgRow } = await setup();

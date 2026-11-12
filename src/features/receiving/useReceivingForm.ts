@@ -115,10 +115,10 @@ export function useReceivingForm({
                 return validateCurrentStep(value, supplierExists, getProduct);
             },
         },
-        onSubmit: ({ value, formApi }) => {
+        onSubmit: ({ value }) => {
             const next = getNextStep(value.step);
             if (next) {
-                formApi.setFieldValue("step", next);
+                changeStep(next);
             } else {
                 onComplete?.();
             }
@@ -129,7 +129,12 @@ export function useReceivingForm({
         },
     });
 
-    return { form };
+    function changeStep(step: ReceivingStep): void {
+        form.setErrorMap({ onSubmit: undefined });
+        form.setFieldValue("step", step);
+    }
+
+    return { form, changeStep };
 }
 
 export type ReceivingForm = ReturnType<typeof useReceivingForm>["form"];
