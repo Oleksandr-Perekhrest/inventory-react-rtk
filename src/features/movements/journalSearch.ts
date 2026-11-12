@@ -61,3 +61,11 @@ export function hasActiveFilters(search: JournalSearch): boolean {
         search.productId !== undefined
     );
 }
+
+export function activeFilterCount(search: JournalSearch): number {
+    return (
+        (search.from !== undefined || search.to !== undefined ? 1 : 0) +
+        (search.type !== undefined ? 1 : 0) +
+        (search.productId !== undefined ? 1 : 0)
+    );
+}

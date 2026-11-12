@@ -37,9 +37,15 @@ const BUTTON_ACTIVE = "border-primary bg-primary text-primary-foreground";
 const BUTTON_INACTIVE =
     "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground";
 
-export function MovementsFilters() {
+type Props = {
+    layout?: "inline" | "stacked";
+};
+
+export function MovementsFilters({ layout = "inline" }: Props) {
     const { search, updateSearch } = useJournalSearch();
     const today = new Date();
+    const fromId = useId();
+    const toId = useId();
     const productComboboxId = useId();
     const comboboxInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,47 +59,58 @@ export function MovementsFilters() {
     }
 
     return (
-        <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1">
-                <label htmlFor="journal-from" className={LABEL_CLASS}>
-                    From
-                </label>
-                <Input
-                    id="journal-from"
-                    type="date"
-                    value={search.from ?? ""}
-                    max={search.to}
-                    className="w-36"
-                    onChange={(e) =>
-                        updateSearch(
-                            { from: e.target.value || undefined },
-                            { replace: true },
-                        )
-                    }
-                />
-            </div>
-            <div className="flex flex-col gap-1">
-                <label htmlFor="journal-to" className={LABEL_CLASS}>
-                    To
-                </label>
-                <Input
-                    id="journal-to"
-                    type="date"
-                    value={search.to ?? ""}
-                    min={search.from}
-                    className="w-36"
-                    onChange={(e) =>
-                        updateSearch(
-                            { to: e.target.value || undefined },
-                            { replace: true },
-                        )
-                    }
-                />
+        <div
+            className={
+                layout === "inline"
+                    ? "flex flex-wrap items-end gap-3"
+                    : "flex flex-col gap-3"
+            }
+        >
+            <div className={layout === "stacked" ? "flex gap-3" : "contents"}>
+                <div className="flex flex-col gap-1">
+                    <label htmlFor={fromId} className={LABEL_CLASS}>
+                        From
+                    </label>
+                    <Input
+                        id={fromId}
+                        type="date"
+                        value={search.from ?? ""}
+                        max={search.to}
+                        className="w-36"
+                        onChange={(e) =>
+                            updateSearch(
+                                { from: e.target.value || undefined },
+                                { replace: true },
+                            )
+                        }
+                    />
+                </div>
+                <div className="flex flex-col gap-1">
+                    <label htmlFor={toId} className={LABEL_CLASS}>
+                        To
+                    </label>
+                    <Input
+                        id={toId}
+                        type="date"
+                        value={search.to ?? ""}
+                        min={search.from}
+                        className="w-36"
+                        onChange={(e) =>
+                            updateSearch(
+                                { to: e.target.value || undefined },
+                                { replace: true },
+                            )
+                        }
+                    />
+                </div>
             </div>
             <div
                 role="group"
                 aria-label="Date presets"
-                className="flex shrink-0 items-center gap-1"
+                className={cn(
+                    "flex items-center gap-1",
+                    layout === "inline" ? "shrink-0" : "flex-wrap",
+                )}
             >
                 {PRESET_OPTIONS.map(({ label, days }) => {
                     const range = presetRange(days, today);
@@ -120,7 +137,10 @@ export function MovementsFilters() {
             <div
                 role="group"
                 aria-label="Type"
-                className="flex shrink-0 items-center gap-1"
+                className={cn(
+                    "flex items-center gap-1",
+                    layout === "inline" ? "shrink-0" : "flex-wrap",
+                )}
             >
                 {TYPE_OPTIONS.map(({ label, value }) => (
                     <button
