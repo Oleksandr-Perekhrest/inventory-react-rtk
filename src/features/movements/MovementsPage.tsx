@@ -1,5 +1,6 @@
 // local dependencies
 import { MovementsTable } from "./MovementsTable";
+import { MovementsFilters } from "./MovementsFilters";
 import { useJournalMovements } from "./useJournalSearch";
 import { MovementsPagination } from "./MovementsPagination";
 
@@ -16,6 +17,7 @@ export function MovementsPage() {
                     </p>
                 )}
             </div>
+            <MovementsFilters />
             <MovementsTable />
             <MovementsPagination />
         </div>

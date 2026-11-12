@@ -12,6 +12,7 @@ import {
 import type { MovementType } from "@/domain";
 import { getErrorMessage } from "@/api/errors";
 import { Button } from "@/components/ui/button";
+import { hasActiveFilters } from "./journalSearch";
 import type { MovementListItem } from "@/api/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useJournalSearch, useJournalMovements } from "./useJournalSearch";
@@ -297,7 +298,29 @@ export function MovementsTable() {
                                     colSpan={columns.length}
                                     className="h-24 text-center text-muted-foreground"
                                 >
-                                    No movements found
+                                    {hasActiveFilters(search) ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <span>
+                                                No movements match these filters
+                                            </span>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    updateSearch({
+                                                        from: undefined,
+                                                        to: undefined,
+                                                        type: undefined,
+                                                        productId: undefined,
+                                                    })
+                                                }
+                                            >
+                                                Clear filters
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        "No movements found"
+                                    )}
                                 </TableCell>
                             </TableRow>
                         ) : (

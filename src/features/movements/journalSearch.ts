@@ -52,3 +52,12 @@ export type JournalSearch = z.output<typeof journalSearchSchema>;
 export function toMovementsParams(search: JournalSearch): MovementsParams {
     return { ...search };
 }
+
+export function hasActiveFilters(search: JournalSearch): boolean {
+    return (
+        search.from !== undefined ||
+        search.to !== undefined ||
+        search.type !== undefined ||
+        search.productId !== undefined
+    );
+}

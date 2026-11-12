@@ -1,4 +1,5 @@
 // local dependencies
+import { toLocalIsoDate } from "@/lib/date";
 import { type Unit, formatUnit } from "@/domain";
 
 export const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -34,4 +35,13 @@ export function discrepancyKind(
     expectedQuantity: number,
 ): DiscrepancyKind {
     return quantity < expectedQuantity ? "short" : "over";
+}
+
+export function presetRange(
+    days: number,
+    today: Date,
+): { from: string; to: string } {
+    const from = new Date(today);
+    from.setDate(from.getDate() - (days - 1));
+    return { from: toLocalIsoDate(from), to: toLocalIsoDate(today) };
 }
