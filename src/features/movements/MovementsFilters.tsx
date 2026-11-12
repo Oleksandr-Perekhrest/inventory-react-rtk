@@ -66,7 +66,11 @@ export function MovementsFilters({ layout = "inline" }: Props) {
                     : "flex flex-col gap-3"
             }
         >
-            <div className={layout === "stacked" ? "flex gap-3" : "contents"}>
+            <div
+                className={
+                    layout === "stacked" ? "flex flex-col gap-3" : "contents"
+                }
+            >
                 <div className="flex flex-col gap-1">
                     <label htmlFor={fromId} className={LABEL_CLASS}>
                         From
@@ -76,7 +80,7 @@ export function MovementsFilters({ layout = "inline" }: Props) {
                         type="date"
                         value={search.from ?? ""}
                         max={search.to}
-                        className="w-36"
+                        className={layout === "stacked" ? "w-full" : "w-36"}
                         onChange={(e) =>
                             updateSearch(
                                 { from: e.target.value || undefined },
@@ -94,7 +98,7 @@ export function MovementsFilters({ layout = "inline" }: Props) {
                         type="date"
                         value={search.to ?? ""}
                         min={search.from}
-                        className="w-36"
+                        className={layout === "stacked" ? "w-full" : "w-36"}
                         onChange={(e) =>
                             updateSearch(
                                 { to: e.target.value || undefined },
@@ -162,7 +166,12 @@ export function MovementsFilters({ layout = "inline" }: Props) {
                     </button>
                 ))}
             </div>
-            <div className="flex flex-col gap-1">
+            <div
+                className={cn(
+                    "flex flex-col gap-1",
+                    layout === "stacked" && "w-full",
+                )}
+            >
                 <label htmlFor={productComboboxId} className={LABEL_CLASS}>
                     Product
                 </label>

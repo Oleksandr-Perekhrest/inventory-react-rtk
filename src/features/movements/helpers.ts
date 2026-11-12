@@ -16,6 +16,10 @@ const quantityFormatter = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 3,
 });
 
+export function formatQuantityWithUnit(quantity: number, unit: Unit): string {
+    return `${quantityFormatter.format(quantity)} ${formatUnit(unit)}`;
+}
+
 export function formatSignedQuantity(quantity: number, unit: Unit): string {
     const prefix = quantity > 0 ? "+" : quantity < 0 ? "−" : "";
     return `${prefix}${quantityFormatter.format(Math.abs(quantity))} ${formatUnit(unit)}`;

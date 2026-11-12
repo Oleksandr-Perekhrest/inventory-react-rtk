@@ -32,6 +32,7 @@ import {
     discrepancyKind,
     formatLocalDate,
     formatSignedQuantity,
+    formatQuantityWithUnit,
     formatDiscrepancyQuantity,
 } from "./helpers";
 
@@ -74,7 +75,7 @@ const columns = columnHelper.columns([
                     aria-expanded={isExpanded}
                     aria-controls={`detail-${row.id}`}
                     aria-label={`Details: ${row.original.product.name}`}
-                    className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     <ChevronRight
                         aria-hidden="true"
@@ -431,11 +432,24 @@ export function MovementsTable() {
                                                                         }
                                                                     >
                                                                         Expected
-                                                                        / Actual
                                                                     </dt>
                                                                     <dd className="font-mono tabular-nums">
-                                                                        {formatDiscrepancyQuantity(
+                                                                        {formatQuantityWithUnit(
                                                                             movement.expectedQuantity,
+                                                                            movement
+                                                                                .product
+                                                                                .unit,
+                                                                        )}
+                                                                    </dd>
+                                                                    <dt
+                                                                        className={
+                                                                            DT_CLASS
+                                                                        }
+                                                                    >
+                                                                        Actual
+                                                                    </dt>
+                                                                    <dd className="font-mono tabular-nums">
+                                                                        {formatQuantityWithUnit(
                                                                             movement.quantity,
                                                                             movement
                                                                                 .product
