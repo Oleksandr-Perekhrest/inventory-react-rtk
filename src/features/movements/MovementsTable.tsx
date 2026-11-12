@@ -1,11 +1,13 @@
 // outsource dependencies
 import { cn } from "cn";
-import { ArrowUp, ArrowDown } from "lucide-react";
+import { Fragment } from "react";
+import { ArrowUp, ArrowDown, ChevronRight } from "lucide-react";
 import {
     useTable,
     flexRender,
     tableFeatures,
     createColumnHelper,
+    rowExpandingFeature,
 } from "@tanstack/react-table";
 
 // local dependencies
@@ -17,12 +19,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getErrorStatus, getErrorMessage } from "@/api/errors";
 import { useJournalSearch, useJournalMovements } from "./useJournalSearch";
 import {
-    formatDateTime,
-    discrepancyKind,
-    formatSignedQuantity,
-    formatDiscrepancyQuantity,
-} from "./helpers";
-import {
     Table,
     TableRow,
     TableBody,
@@ -30,6 +26,14 @@ import {
     TableHead,
     TableHeader,
 } from "@/components/ui/table";
+import {
+    hasDetails,
+    formatDateTime,
+    discrepancyKind,
+    formatLocalDate,
+    formatSignedQuantity,
+    formatDiscrepancyQuantity,
+} from "./helpers";
 
 const HEADER_CLASS =
     "h-9 bg-muted px-3 font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";
@@ -49,10 +53,40 @@ function TypeBadge({ type }: { type: MovementType }) {
     return <span className={cn(BADGE_CLASS, TYPE_COLORS[type])}>{type}</span>;
 }
 
-const features = tableFeatures({});
+const features = tableFeatures({ rowExpandingFeature });
 const columnHelper = createColumnHelper<typeof features, MovementListItem>();
 
+const DT_CLASS =
+    "font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap";
+
 const columns = columnHelper.columns([
+    columnHelper.display({
+        id: "expand",
+        header: () => <span className="sr-only">Details</span>,
+        cell: (info) => {
+            const { row } = info;
+            if (!row.getCanExpand()) return null;
+            const isExpanded = row.getIsExpanded();
+            return (
+                <button
+                    type="button"
+                    onClick={row.getToggleExpandedHandler()}
+                    aria-expanded={isExpanded}
+                    aria-controls={`detail-${row.id}`}
+                    aria-label={`Details: ${row.original.product.name}`}
+                    className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                >
+                    <ChevronRight
+                        aria-hidden="true"
+                        className={cn(
+                            "size-4 transition-transform",
+                            isExpanded && "rotate-90",
+                        )}
+                    />
+                </button>
+            );
+        },
+    }),
     columnHelper.accessor("date", {
         id: "date",
         header: "Date",
@@ -154,6 +188,8 @@ export function MovementsTable() {
         features,
         columns,
         data: data?.items ?? EMPTY_MOVEMENTS,
+        getRowId: (m) => m.id,
+        getRowCanExpand: (row) => hasDetails(row.original),
     });
 
     if (isError && !data) {
@@ -225,11 +261,14 @@ export function MovementsTable() {
                             >
                                 {headerGroup.headers.map((header) => {
                                     const isDate = header.column.id === "date";
+                                    const isExpand =
+                                        header.column.id === "expand";
                                     return (
                                         <TableHead
                                             key={header.id}
                                             className={cn(
                                                 HEADER_CLASS,
+                                                isExpand && "w-9 px-2",
                                                 RIGHT_ALIGNED_COLUMNS.has(
                                                     header.column.id,
                                                 ) && "text-right",
@@ -299,12 +338,16 @@ export function MovementsTable() {
                                         <TableCell
                                             key={col.id}
                                             className={cn(
+                                                col.id === "expand" &&
+                                                    "w-9 px-2",
                                                 RIGHT_ALIGNED_COLUMNS.has(
                                                     col.id,
                                                 ) && "text-right",
                                             )}
                                         >
-                                            <Skeleton className="h-4 w-full rounded-sm" />
+                                            {col.id !== "expand" && (
+                                                <Skeleton className="h-4 w-full rounded-sm" />
+                                            )}
                                         </TableCell>
                                     ))}
                                 </TableRow>
@@ -341,25 +384,142 @@ export function MovementsTable() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow key={row.id}>
-                                    {row.getAllCells().map((cell) => (
-                                        <TableCell
-                                            key={cell.id}
-                                            className={cn(
-                                                RIGHT_ALIGNED_COLUMNS.has(
-                                                    cell.column.id,
-                                                ) && "text-right",
-                                            )}
-                                        >
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext(),
-                                            )}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
+                            table.getRowModel().rows.map((row) => {
+                                const movement = row.original;
+                                const isExpanded = row.getIsExpanded();
+                                return (
+                                    <Fragment key={row.id}>
+                                        <TableRow>
+                                            {row.getAllCells().map((cell) => (
+                                                <TableCell
+                                                    key={cell.id}
+                                                    className={cn(
+                                                        cell.column.id ===
+                                                            "expand" &&
+                                                            "w-9 px-2",
+                                                        RIGHT_ALIGNED_COLUMNS.has(
+                                                            cell.column.id,
+                                                        ) && "text-right",
+                                                    )}
+                                                >
+                                                    {flexRender(
+                                                        cell.column.columnDef
+                                                            .cell,
+                                                        cell.getContext(),
+                                                    )}
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                        {isExpanded && (
+                                            <tr id={`detail-${row.id}`}>
+                                                <td
+                                                    colSpan={
+                                                        table.getAllLeafColumns()
+                                                            .length
+                                                    }
+                                                    className="bg-muted/50 px-6 py-3"
+                                                >
+                                                    <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
+                                                        {movement.expectedQuantity !==
+                                                            undefined &&
+                                                            movement.expectedQuantity !==
+                                                                movement.quantity && (
+                                                                <>
+                                                                    <dt
+                                                                        className={
+                                                                            DT_CLASS
+                                                                        }
+                                                                    >
+                                                                        Expected
+                                                                        / Actual
+                                                                    </dt>
+                                                                    <dd className="font-mono tabular-nums">
+                                                                        {formatDiscrepancyQuantity(
+                                                                            movement.expectedQuantity,
+                                                                            movement.quantity,
+                                                                            movement
+                                                                                .product
+                                                                                .unit,
+                                                                        )}
+                                                                    </dd>
+                                                                </>
+                                                            )}
+                                                        {movement.discrepancyNote !==
+                                                            undefined && (
+                                                            <>
+                                                                <dt
+                                                                    className={
+                                                                        DT_CLASS
+                                                                    }
+                                                                >
+                                                                    Discrepancy
+                                                                    note
+                                                                </dt>
+                                                                <dd>
+                                                                    {
+                                                                        movement.discrepancyNote
+                                                                    }
+                                                                </dd>
+                                                            </>
+                                                        )}
+                                                        {movement.batch !==
+                                                            undefined && (
+                                                            <>
+                                                                <dt
+                                                                    className={
+                                                                        DT_CLASS
+                                                                    }
+                                                                >
+                                                                    Batch
+                                                                </dt>
+                                                                <dd className="font-mono">
+                                                                    {
+                                                                        movement.batch
+                                                                    }
+                                                                </dd>
+                                                            </>
+                                                        )}
+                                                        {movement.expiresAt !==
+                                                            undefined && (
+                                                            <>
+                                                                <dt
+                                                                    className={
+                                                                        DT_CLASS
+                                                                    }
+                                                                >
+                                                                    Expires
+                                                                </dt>
+                                                                <dd>
+                                                                    {formatLocalDate(
+                                                                        movement.expiresAt,
+                                                                    )}
+                                                                </dd>
+                                                            </>
+                                                        )}
+                                                        {movement.comment !==
+                                                            undefined && (
+                                                            <>
+                                                                <dt
+                                                                    className={
+                                                                        DT_CLASS
+                                                                    }
+                                                                >
+                                                                    Comment
+                                                                </dt>
+                                                                <dd>
+                                                                    {
+                                                                        movement.comment
+                                                                    }
+                                                                </dd>
+                                                            </>
+                                                        )}
+                                                    </dl>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </Fragment>
+                                );
+                            })
                         )}
                     </TableBody>
                 </Table>
