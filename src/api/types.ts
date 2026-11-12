@@ -32,3 +32,12 @@ export type ApiErrorData = {
     message: string;
     fields?: Record<string, string>;
 };
+
+export type ReceiptResponse = {
+    invoiceNumber: string;
+    supplierId: string;
+    date: string;
+    movementIds: string[];
+    lineCount: number;
+    discrepancyCount: number;
+};

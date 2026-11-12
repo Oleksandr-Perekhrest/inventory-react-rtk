@@ -2,7 +2,7 @@
 import * as z from "zod";
 
 // local dependencies
-import type { Product } from "./product";
+import type { Unit, Product } from "./product";
 
 export const RECEIVING_STEPS = [
     "document",
@@ -318,28 +318,24 @@ export function buildReceiptPayload(draft: ReceiptDraft): ReceiptPayload {
     };
 }
 
+export function unitPrecisionError(qty: number, unit: Unit): string | null {
+    if (unit === "pcs" || unit === "box") {
+        return Number.isInteger(qty) ? null : "Quantity must be a whole number";
+    }
+    return Number(qty.toFixed(3)) === qty
+        ? null
+        : "Quantity can have at most 3 decimal places";
+}
+
 function checkUnitPrecision(
     qty: number,
     product: Product,
     path: (number | string)[],
     ctx: z.RefinementCtx,
 ): void {
-    if (product.unit === "pcs" || product.unit === "box") {
-        if (!Number.isInteger(qty)) {
-            ctx.addIssue({
-                code: "custom",
-                path,
-                message: "Quantity must be a whole number",
-            });
-        }
-    } else {
-        if (Number(qty.toFixed(3)) !== qty) {
-            ctx.addIssue({
-                code: "custom",
-                path,
-                message: "Quantity can have at most 3 decimal places",
-            });
-        }
+    const msg = unitPrecisionError(qty, product.unit);
+    if (msg !== null) {
+        ctx.addIssue({ code: "custom", path, message: msg });
     }
 }
 
