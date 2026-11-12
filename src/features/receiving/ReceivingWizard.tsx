@@ -291,6 +291,9 @@ function ReceivingWizardInner({ ref, onPosted }: InnerProps) {
     const [postReceipt] = usePostReceiptMutation();
     const [isPosting, setIsPosting] = useState(false);
     const [postError, setPostError] = useState<string | null>(null);
+    const [invoiceServerError, setInvoiceServerError] = useState<string | null>(
+        null,
+    );
 
     const invoiceNumberRef = useRef<HTMLInputElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
@@ -325,14 +328,9 @@ function ReceivingWizardInner({ ref, onPosted }: InnerProps) {
                 err.status === 409 &&
                 err.code === "DUPLICATE_INVOICE"
             ) {
+                form.setErrorMap({ onSubmit: undefined });
                 form.setFieldValue("step", "document");
-                form.setFieldMeta("document.invoiceNumber", (prev) => ({
-                    ...prev,
-                    errorMap: { ...prev.errorMap, onServer: err.message },
-                }));
-                queueMicrotask(() => {
-                    invoiceNumberRef.current?.focus();
-                });
+                setInvoiceServerError(err.message);
             } else {
                 setPostError(
                     getErrorMessage(isApiErrorData(err) ? err : undefined),
@@ -347,6 +345,12 @@ function ReceivingWizardInner({ ref, onPosted }: InnerProps) {
     useImperativeHandle(ref, () => ({ cancelSync: draftSync.cancel }), [
         draftSync.cancel,
     ]);
+
+    useEffect(() => {
+        if (invoiceServerError !== null) {
+            invoiceNumberRef.current?.focus();
+        }
+    }, [invoiceServerError]);
 
     const blocker = useBlocker({
         shouldBlockFn: () => {
@@ -428,6 +432,10 @@ function ReceivingWizardInner({ ref, onPosted }: InnerProps) {
                                 suppliersError={suppliersQuery.error}
                                 refetchSuppliers={suppliersQuery.refetch}
                                 invoiceNumberRef={invoiceNumberRef}
+                                invoiceServerError={invoiceServerError}
+                                onClearInvoiceServerError={() =>
+                                    setInvoiceServerError(null)
+                                }
                             />
                         ) : currentStep === "lines" ? (
                             <LinesStep
@@ -598,6 +606,8 @@ type DocumentStepProps = {
     suppliersError: ReturnType<typeof useGetSuppliersQuery>["error"];
     refetchSuppliers: () => void;
     invoiceNumberRef: React.RefObject<HTMLInputElement | null>;
+    invoiceServerError: string | null;
+    onClearInvoiceServerError: () => void;
 };
 
 function DocumentStep({
@@ -607,6 +617,8 @@ function DocumentStep({
     suppliersError,
     refetchSuppliers,
     invoiceNumberRef,
+    invoiceServerError,
+    onClearInvoiceServerError,
 }: DocumentStepProps) {
     return (
         <div className="flex flex-col gap-4 rounded-sm border border-border bg-card p-4">
@@ -624,9 +636,12 @@ function DocumentStep({
                                 <>
                                     <Select
                                         value={field.state.value}
-                                        onValueChange={(v) =>
-                                            field.handleChange(v)
-                                        }
+                                        onValueChange={(v) => {
+                                            field.handleChange(v);
+                                            if (invoiceServerError !== null) {
+                                                onClearInvoiceServerError();
+                                            }
+                                        }}
                                         disabled={isDisabled}
                                     >
                                         <SelectTrigger
@@ -688,7 +703,11 @@ function DocumentStep({
                     <FormField
                         name={field.name}
                         label="Invoice number"
-                        error={firstErrorText(field.state.meta.errors)}
+                        error={
+                            firstErrorText(field.state.meta.errors) ??
+                            invoiceServerError ??
+                            undefined
+                        }
                     >
                         {(fieldProps) => (
                             <Input
@@ -698,13 +717,8 @@ function DocumentStep({
                                 value={field.state.value}
                                 onChange={(event) => {
                                     field.handleChange(event.target.value);
-                                    if (
-                                        field.state.meta.errorMap.onServer !==
-                                        undefined
-                                    ) {
-                                        field.setErrorMap({
-                                            onServer: undefined,
-                                        });
+                                    if (invoiceServerError !== null) {
+                                        onClearInvoiceServerError();
                                     }
                                 }}
                                 onBlur={field.handleBlur}

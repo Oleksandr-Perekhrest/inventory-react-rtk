@@ -197,6 +197,101 @@ describe("409 Duplicate invoice (T-P2)", () => {
     });
 });
 
+describe("409 Duplicate invoice via click-through flow (T-P2b)", () => {
+    it("P2b — same 409 handling when DocumentStep was rendered in this session (Back then Next through all steps)", async () => {
+        // Pre-seed the same invoice so the POST returns 409
+        db.transaction((state) => {
+            state.movements.push({
+                id: "mov-dup-pre-002",
+                type: "receipt",
+                productId: OJ_ID,
+                quantity: 10,
+                date: "2026-01-15T07:00:00.000Z",
+                reference: "INV-POST-D002",
+                supplierId: SUPPLIER_ID,
+                expectedQuantity: 10,
+            });
+        });
+
+        const user = userEvent.setup();
+        const storage = createMemoryStorage();
+        // No discrepancies so reconciliation validates without notes
+        saveDraft(storage, {
+            step: "review",
+            document: {
+                supplierId: SUPPLIER_ID,
+                invoiceNumber: "INV-POST-D002",
+                date: DOCUMENT_DATE,
+            },
+            lines: [
+                {
+                    id: "line-oj-2",
+                    productId: OJ_ID,
+                    expectedQuantity: 10,
+                    batch: "",
+                    expiryDate: "",
+                },
+                {
+                    id: "line-ub-2",
+                    productId: BUTTER_ID,
+                    expectedQuantity: 5,
+                    batch: "BATCH-UB-002",
+                    expiryDate: "2026-01-16",
+                },
+            ],
+        });
+
+        await renderWithRouter("/receiving", { store: makeStore({ storage }) });
+
+        const stepList = await screen.findByRole("list", {
+            name: "Wizard steps",
+        });
+        const stepItems = within(stepList).getAllByRole("listitem");
+
+        // Click Back three times to reach document step — this registers the invoice field
+        await user.click(screen.getByRole("button", { name: "Back" })); // review → reconciliation
+        await user.click(screen.getByRole("button", { name: "Back" })); // reconciliation → lines
+        await user.click(screen.getByRole("button", { name: "Back" })); // lines → document
+        await waitFor(() =>
+            expect(stepItems[0]).toHaveAttribute("aria-current", "step"),
+        );
+
+        // Wait for suppliers so Next from document is not disabled
+        await waitFor(() =>
+            expect(
+                screen.getByRole("button", { name: "Next" }),
+            ).not.toBeDisabled(),
+        );
+
+        // Click Next three times back to review
+        await user.click(screen.getByRole("button", { name: "Next" })); // document → lines
+        await waitFor(() =>
+            expect(stepItems[1]).toHaveAttribute("aria-current", "step"),
+        );
+        await user.click(screen.getByRole("button", { name: "Next" })); // lines → reconciliation
+        // Wait for product names so reconciliation validation has what it needs
+        await screen.findByRole("group", { name: "Orange Juice 1 L" });
+        await user.click(screen.getByRole("button", { name: "Next" })); // reconciliation → review
+        await waitFor(() =>
+            expect(stepItems[3]).toHaveAttribute("aria-current", "step"),
+        );
+
+        await user.click(screen.getByRole("button", { name: "Post receipt" }));
+
+        // Document step and error shown — no TypeError thrown
+        await waitFor(() =>
+            expect(stepItems[0]).toHaveAttribute("aria-current", "step"),
+        );
+        const invoiceInput = await screen.findByLabelText("Invoice number");
+        await waitFor(() =>
+            expect(
+                screen.getByText(/has already been received/),
+            ).toBeInTheDocument(),
+        );
+        await waitFor(() => expect(invoiceInput).toHaveFocus());
+    });
+});
+
 describe("Server error then retry (T-P3)", () => {
     it("P3 — first POST returns 500 showing role='alert'; button re-enables; second click succeeds", async () => {
         server.use(
