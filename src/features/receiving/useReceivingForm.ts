@@ -117,11 +117,7 @@ export function useReceivingForm({
         },
     });
 
-    const clearFailedSteps = () => {
-        failedStepsRef.current.clear();
-    };
-
-    return { form, clearFailedSteps };
+    return { form };
 }
 
 export type ReceivingForm = ReturnType<typeof useReceivingForm>["form"];
