@@ -514,21 +514,22 @@ function ReceivingWizardInner({ ref, onPosted }: InnerProps) {
                                     </p>
                                 )}
                                 {step === "reconciliation" && (
-                                    <form.Field name="lines">
-                                        {(f) => {
-                                            const err = firstErrorText(
-                                                f.state.meta.errors,
-                                            );
-                                            return err ? (
+                                    <form.Subscribe
+                                        selector={(s) =>
+                                            firstErrorText(s.errors)
+                                        }
+                                    >
+                                        {(formError) =>
+                                            formError ? (
                                                 <p
                                                     role="alert"
                                                     className="text-sm text-destructive"
                                                 >
-                                                    {err}
+                                                    {formError}
                                                 </p>
-                                            ) : null;
-                                        }}
-                                    </form.Field>
+                                            ) : null
+                                        }
+                                    </form.Subscribe>
                                 )}
                             </div>
                         );
@@ -999,14 +1000,16 @@ function LinesStep({ form, documentDate, lines }: LinesStepProps) {
                                 }
                             />
                         ))}
-                        {firstErrorText(arrayField.state.meta.errors) && (
-                            <p className="text-sm text-destructive">
-                                {firstErrorText(arrayField.state.meta.errors)}
-                            </p>
-                        )}
                     </>
                 )}
             </form.Field>
+            <form.Subscribe selector={(s) => firstErrorText(s.errors)}>
+                {(formError) =>
+                    formError ? (
+                        <p className="text-sm text-destructive">{formError}</p>
+                    ) : null
+                }
+            </form.Subscribe>
 
             {anyRejected && (
                 <div className="flex items-center gap-2 text-sm text-destructive">

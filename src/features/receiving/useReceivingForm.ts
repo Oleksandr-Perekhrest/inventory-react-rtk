@@ -16,14 +16,19 @@ import {
 } from "@/domain/receiving";
 
 type FieldErrors = Record<string, string>;
-type StepValidationResult = { fields: FieldErrors } | undefined;
+type StepValidationResult = { form?: string; fields: FieldErrors } | undefined;
 
-function mapIssuesToFields(
+function mapIssuesToResult(
     issues: ReadonlyArray<{ path: PropertyKey[]; message: string }>,
     prefix: string,
-): FieldErrors {
-    const errors: FieldErrors = {};
+): StepValidationResult {
+    let formError: string | undefined;
+    const fields: FieldErrors = {};
     for (const issue of issues) {
+        if (issue.path.length === 0) {
+            formError ??= issue.message;
+            continue;
+        }
         const path = issue.path
             .map((segment) =>
                 typeof segment === "number"
@@ -33,11 +38,14 @@ function mapIssuesToFields(
             .join("")
             .replace(/^\./, "");
         const key = prefix + path;
-        if (!(key in errors)) {
-            errors[key] = issue.message;
+        if (!(key in fields)) {
+            fields[key] = issue.message;
         }
     }
-    return errors;
+    if (formError === undefined && Object.keys(fields).length === 0) {
+        return undefined;
+    }
+    return { form: formError, fields };
 }
 
 function validateCurrentStep(
@@ -52,9 +60,7 @@ function validateCurrentStep(
         });
         const result = schema.safeParse(value.document);
         if (!result.success) {
-            return {
-                fields: mapIssuesToFields(result.error.issues, "document."),
-            };
+            return mapIssuesToResult(result.error.issues, "document.");
         }
     }
     if (value.step === "lines") {
@@ -64,18 +70,14 @@ function validateCurrentStep(
         });
         const result = schema.safeParse(value.lines);
         if (!result.success) {
-            return {
-                fields: mapIssuesToFields(result.error.issues, "lines"),
-            };
+            return mapIssuesToResult(result.error.issues, "lines");
         }
     }
     if (value.step === "reconciliation") {
         const schema = createReconciliationStepSchema({ getProduct });
         const result = schema.safeParse(value.lines);
         if (!result.success) {
-            return {
-                fields: mapIssuesToFields(result.error.issues, "lines"),
-            };
+            return mapIssuesToResult(result.error.issues, "lines");
         }
     }
     return undefined;
