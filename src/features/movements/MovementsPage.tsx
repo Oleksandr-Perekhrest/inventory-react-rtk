@@ -8,7 +8,7 @@ export function MovementsPage() {
     const { data } = useJournalMovements();
 
     return (
-        <div className="flex flex-col gap-4 p-6">
+        <div className="flex flex-col gap-4 p-6 h-[calc(100svh-4rem-env(safe-area-inset-bottom))] lg:h-svh">
             <div>
                 <h1 className="text-2xl font-semibold">Movements</h1>
                 {data !== undefined && (

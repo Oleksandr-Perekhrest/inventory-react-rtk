@@ -160,7 +160,7 @@ export function MovementsTable() {
         return (
             <div
                 role="alert"
-                className="flex flex-col gap-2 rounded-sm border bg-card p-4 text-sm text-destructive"
+                className="flex flex-col flex-1 min-h-0 gap-2 rounded-sm border bg-card p-4 text-sm text-destructive"
             >
                 <span>{getErrorMessage(error)}</span>
                 <Button
@@ -176,7 +176,7 @@ export function MovementsTable() {
     }
 
     return (
-        <>
+        <div className="flex flex-col flex-1 min-h-0 gap-2">
             {isError && data && (
                 <div
                     role="alert"
@@ -194,13 +194,16 @@ export function MovementsTable() {
             )}
             <div
                 className={cn(
-                    "overflow-hidden rounded-sm border bg-card",
+                    "flex-1 min-h-0 overflow-hidden rounded-sm border bg-card",
                     isFetching && !!data && "opacity-60",
                 )}
                 aria-busy={isFetching && !!data ? true : undefined}
             >
-                <Table className="min-w-224">
-                    <TableHeader>
+                <Table
+                    className="min-w-224"
+                    containerClassName="h-full overflow-auto"
+                >
+                    <TableHeader className="sticky top-0 z-10 bg-muted">
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow
                                 key={headerGroup.id}
@@ -347,6 +350,6 @@ export function MovementsTable() {
                     </TableBody>
                 </Table>
             </div>
-        </>
+        </div>
     );
 }

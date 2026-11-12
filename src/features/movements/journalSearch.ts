@@ -8,7 +8,7 @@ import type { MovementsParams } from "@/api/queries";
 export const JOURNAL_SEARCH_DEFAULTS = {
     order: "desc",
     page: 1,
-    pageSize: 20,
+    pageSize: 10,
 } as const;
 
 export const journalSearchSchema = z
