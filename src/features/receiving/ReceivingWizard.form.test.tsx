@@ -11,6 +11,7 @@ import { createMemoryStorage } from "@/mocks/db/storage";
 import { renderWithRouter } from "@/test/renderWithRouter";
 
 // Seed constants used in assertions
+const SUPPLIER_NAME = "Greenfield Foods Ltd";
 const PERISHABLE_PRODUCT = "Whole Milk 3.5%"; // unit: "l" → formatUnit → "L"
 const EXPIRY_DATE = "2099-12-31";
 
@@ -31,13 +32,10 @@ async function goToLinesStep(user: ReturnType<typeof userEvent.setup>) {
     await waitFor(() =>
         expect(screen.getByRole("button", { name: "Next" })).not.toBeDisabled(),
     );
-    // Radix Select portal does not mount in jsdom — use the hidden native <select>
-    const supplierLabel = screen.getByText("Supplier", { selector: "label" });
-    const hiddenSelect = supplierLabel.parentElement?.querySelector("select");
-    expect(hiddenSelect).toBeTruthy();
-    if (hiddenSelect) {
-        await user.selectOptions(hiddenSelect, "sup-001");
-    }
+    await user.click(screen.getByLabelText("Supplier"));
+    await user.click(
+        await screen.findByRole("option", { name: SUPPLIER_NAME }),
+    );
     await user.type(screen.getByLabelText("Invoice number"), "INV-TEST-001");
     await user.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByRole("button", { name: "Continue" });

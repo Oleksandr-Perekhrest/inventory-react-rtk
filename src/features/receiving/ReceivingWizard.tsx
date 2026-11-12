@@ -418,7 +418,7 @@ function DocumentStep({
                             {(fieldProps) => (
                                 <>
                                     <Select
-                                        value={field.state.value || undefined}
+                                        value={field.state.value}
                                         onValueChange={(v) =>
                                             field.handleChange(v)
                                         }
