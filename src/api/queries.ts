@@ -9,6 +9,7 @@ export const paginationQuery = {
     pageSize: z.coerce.number().int().gte(1).lte(100).default(20),
 };
 
+export const dashboardQuerySchema = z.object({});
 export const categoriesQuerySchema = z.object({});
 export const suppliersQuerySchema = z.object({});
 export const getProductQuerySchema = z.object({});

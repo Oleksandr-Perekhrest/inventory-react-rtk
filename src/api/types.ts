@@ -1,6 +1,15 @@
 // local dependencies
 import type { Product, Category, Movement, Supplier } from "../domain";
 
+export type DashboardSummary = {
+    stockValue: number;
+    productCount: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+    runningLow: Product[];
+    daily: Array<{ date: string; inflow: number; outflow: number }>;
+};
+
 export type Paginated<T> = {
     items: T[];
     total: number;
