@@ -2,6 +2,7 @@
 import type { Ref } from "react";
 import { useBlocker } from "@tanstack/react-router";
 import {
+    useId,
     useRef,
     useMemo,
     useState,
@@ -867,6 +868,7 @@ type ReconciliationRowProps = {
 };
 
 function ReconciliationRow({ form, i, line }: ReconciliationRowProps) {
+    const productNameId = useId();
     const { data: product } = useGetProductQuery(line.productId, {
         skip: !line.productId,
     });
@@ -875,6 +877,8 @@ function ReconciliationRow({ form, i, line }: ReconciliationRowProps) {
 
     return (
         <div
+            role="group"
+            aria-labelledby={productNameId}
             data-discrepancy={discrepancy ? "true" : undefined}
             className={
                 "flex flex-col gap-3 rounded-sm border p-4 " +
@@ -884,7 +888,7 @@ function ReconciliationRow({ form, i, line }: ReconciliationRowProps) {
             }
         >
             <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">
+                <span id={productNameId} className="font-medium">
                     {product?.name ?? line.productId}
                 </span>
                 {product && (

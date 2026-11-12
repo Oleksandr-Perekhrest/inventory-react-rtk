@@ -89,7 +89,7 @@ describe("Document step validation (T1)", () => {
 });
 
 describe("Per-step gate regression (T2)", () => {
-    it("2 — filling document step and clicking Next shows the Lines step; typing in quantity shows no errors before Continue is clicked", async () => {
+    it("2 — filling document step and clicking Next shows the Lines step; typing in quantity shows no errors before Next is clicked", async () => {
         const user = userEvent.setup();
         await renderWithRouter("/receiving", {
             store: makeStore({ storage: createMemoryStorage() }),
@@ -102,7 +102,7 @@ describe("Per-step gate regression (T2)", () => {
         const stepItems = within(stepList).getAllByRole("listitem");
         expect(stepItems[1]).toHaveAttribute("aria-current", "step");
 
-        // Typing into quantity does not show validation errors before Continue is clicked
+        // Typing into quantity does not show validation errors before Next is clicked
         const qtyInput = screen.getByLabelText("Expected quantity");
         await user.type(qtyInput, "10");
         expect(

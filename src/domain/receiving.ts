@@ -50,7 +50,9 @@ export function getActualQuantity(line: ReceiptLineDraft): number | null {
 }
 
 export function hasDiscrepancy(line: ReceiptLineDraft): boolean {
-    return getActualQuantity(line) !== line.expectedQuantity;
+    const actual = getActualQuantity(line);
+    if (actual === null) return false;
+    return actual !== line.expectedQuantity;
 }
 
 export function getNextStep(step: ReceivingStep): ReceivingStep | null {
