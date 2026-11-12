@@ -74,7 +74,7 @@ export function RecentMovementsPanel() {
                                         <MovementTypeBadge
                                             type={movement.type}
                                         />
-                                        <span className="flex-1 truncate text-sm">
+                                        <span className="min-w-0 flex-1 truncate text-sm">
                                             {movement.product.name}
                                         </span>
                                     </div>

@@ -14,8 +14,12 @@ export function DashboardPage() {
             </div>
             <MetricCards />
             <div className="grid gap-6 lg:grid-cols-2">
-                <RunningLowPanel />
-                <RecentMovementsPanel />
+                <div className="min-w-0">
+                    <RunningLowPanel />
+                </div>
+                <div className="min-w-0">
+                    <RecentMovementsPanel />
+                </div>
             </div>
         </div>
     );
