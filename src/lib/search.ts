@@ -7,12 +7,15 @@ export function applySearchPatch<T extends { page?: number }>(
     prev: T,
     patch: Partial<T>,
 ): T {
-    const hasPageInPatch = "page" in patch;
-    const resetsPage =
-        !hasPageInPatch &&
-        (Object.keys(patch) as Array<keyof T>).some(
-            (k) => patch[k] !== prev[k],
-        );
+    let resetsPage = false;
+    if (!("page" in patch)) {
+        for (const key in patch) {
+            if (patch[key] !== prev[key]) {
+                resetsPage = true;
+                break;
+            }
+        }
+    }
     return {
         ...prev,
         ...patch,
