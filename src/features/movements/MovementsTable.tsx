@@ -1,5 +1,6 @@
 // outsource dependencies
 import { cn } from "cn";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import {
     useTable,
     flexRender,
@@ -13,7 +14,7 @@ import { getErrorMessage } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import type { MovementListItem } from "@/api/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useJournalMovements } from "./useJournalSearch";
+import { useJournalSearch, useJournalMovements } from "./useJournalSearch";
 import {
     formatDateTime,
     discrepancyKind,
@@ -144,6 +145,7 @@ const columns = columnHelper.columns([
 ]);
 
 export function MovementsTable() {
+    const { search, updateSearch } = useJournalSearch();
     const { data, isLoading, isFetching, isError, error, refetch } =
         useJournalMovements();
 
@@ -196,32 +198,78 @@ export function MovementsTable() {
                 )}
                 aria-busy={isFetching && !!data ? true : undefined}
             >
-                <Table className="min-w-[56rem]">
+                <Table className="min-w-224">
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow
                                 key={headerGroup.id}
                                 className="border-0 hover:bg-transparent"
                             >
-                                {headerGroup.headers.map((header) => (
-                                    <TableHead
-                                        key={header.id}
-                                        className={cn(
-                                            HEADER_CLASS,
-                                            RIGHT_ALIGNED_COLUMNS.has(
-                                                header.column.id,
-                                            ) && "text-right",
-                                        )}
-                                    >
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                  header.column.columnDef
-                                                      .header,
-                                                  header.getContext(),
-                                              )}
-                                    </TableHead>
-                                ))}
+                                {headerGroup.headers.map((header) => {
+                                    const isDate = header.column.id === "date";
+                                    return (
+                                        <TableHead
+                                            key={header.id}
+                                            className={cn(
+                                                HEADER_CLASS,
+                                                RIGHT_ALIGNED_COLUMNS.has(
+                                                    header.column.id,
+                                                ) && "text-right",
+                                            )}
+                                            aria-sort={
+                                                isDate
+                                                    ? search.order === "desc"
+                                                        ? "descending"
+                                                        : "ascending"
+                                                    : undefined
+                                            }
+                                        >
+                                            {header.isPlaceholder ? null : isDate ? (
+                                                <button
+                                                    type="button"
+                                                    aria-label={
+                                                        search.order === "desc"
+                                                            ? "Date, sorted newest first"
+                                                            : "Date, sorted oldest first"
+                                                    }
+                                                    className="flex w-full items-center gap-1 uppercase tracking-wider"
+                                                    onClick={() =>
+                                                        updateSearch({
+                                                            order:
+                                                                search.order ===
+                                                                "desc"
+                                                                    ? "asc"
+                                                                    : "desc",
+                                                        })
+                                                    }
+                                                >
+                                                    {flexRender(
+                                                        header.column.columnDef
+                                                            .header,
+                                                        header.getContext(),
+                                                    )}
+                                                    {search.order === "asc" ? (
+                                                        <ArrowUp
+                                                            aria-hidden="true"
+                                                            className="size-3 shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <ArrowDown
+                                                            aria-hidden="true"
+                                                            className="size-3 shrink-0"
+                                                        />
+                                                    )}
+                                                </button>
+                                            ) : (
+                                                flexRender(
+                                                    header.column.columnDef
+                                                        .header,
+                                                    header.getContext(),
+                                                )
+                                            )}
+                                        </TableHead>
+                                    );
+                                })}
                             </TableRow>
                         ))}
                     </TableHeader>

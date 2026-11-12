@@ -1,5 +1,6 @@
 // outsource dependencies
 import { cn } from "cn";
+import { useId } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const DEFAULT_PAGE_SIZES = [10, 20, 50];
@@ -14,7 +15,6 @@ type Props = {
     onPageChange: (page: number) => void;
     onPageSizeChange: (pageSize: number) => void;
     onPrefetchPage?: (page: number) => void;
-    idPrefix?: string;
 };
 
 export function TablePagination({
@@ -24,12 +24,11 @@ export function TablePagination({
     onPageChange,
     onPageSizeChange,
     onPrefetchPage,
-    idPrefix,
 }: Props) {
     const lastPage = total > 0 ? Math.ceil(total / pageSize) : 1;
     const isFirst = page <= 1;
     const isLast = page >= lastPage;
-    const selectId = idPrefix ?? "rows-per-page";
+    const selectId = useId();
 
     const pageSizeOptions = DEFAULT_PAGE_SIZES.includes(pageSize)
         ? DEFAULT_PAGE_SIZES

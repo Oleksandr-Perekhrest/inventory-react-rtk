@@ -1,6 +1,7 @@
 // local dependencies
 import { MovementsTable } from "./MovementsTable";
 import { useJournalMovements } from "./useJournalSearch";
+import { MovementsPagination } from "./MovementsPagination";
 
 export function MovementsPage() {
     const { data } = useJournalMovements();
@@ -11,11 +12,12 @@ export function MovementsPage() {
                 <h1 className="text-2xl font-semibold">Movements</h1>
                 {data !== undefined && (
                     <p className="text-sm text-muted-foreground">
-                        {data.total} movement{data.total !== 1 ? "s" : ""}
+                        {`${new Intl.NumberFormat("en-US").format(data.total)} movement${data.total !== 1 ? "s" : ""}`}
                     </p>
                 )}
             </div>
             <MovementsTable />
+            <MovementsPagination />
         </div>
     );
 }
