@@ -1,7 +1,15 @@
 // outsource dependencies
 import userEvent from "@testing-library/user-event";
 import { screen, within, waitFor } from "@testing-library/react";
-import { it, expect, afterAll, describe, afterEach, beforeAll } from "vitest";
+import {
+    it,
+    vi,
+    expect,
+    afterAll,
+    describe,
+    afterEach,
+    beforeAll,
+} from "vitest";
 
 // local dependencies
 import { setBackendReady } from "@/api/backendReady";
@@ -49,20 +57,36 @@ afterEach(() => {
 });
 
 describe("Preset filter", () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it("Last 7 days sets aria-pressed, URL from/to, count matches db range", async () => {
         const user = userEvent.setup();
         const total = db.movements.length;
 
-        const todayDate = new Date();
-        const fromDate = new Date(todayDate);
-        fromDate.setDate(fromDate.getDate() - 6);
-        const expectedFrom = localIsoDate(fromDate);
-        const expectedTo = localIsoDate(todayDate);
+        const expectedFrom = "2026-10-31";
+        const expectedTo = "2026-11-06";
 
-        const rangeCount = db.movements.filter((m) => {
-            const d = localIsoDate(new Date(m.date));
-            return d >= expectedFrom && d <= expectedTo;
-        }).length;
+        const rangeMovements = mirrorSort(
+            db.movements.filter((m) => {
+                const d = localIsoDate(new Date(m.date));
+                return d >= expectedFrom && d <= expectedTo;
+            }),
+            "desc",
+        );
+        const rangeCount = rangeMovements.length;
+        expect(rangeCount).toBeGreaterThan(0);
+        expect(rangeCount).toBeLessThan(total);
+
+        const productMap = new Map(db.products.map((p) => [p.id, p]));
+        const firstRangeMovement = rangeMovements[0];
+        const firstRangeProduct = productMap.get(firstRangeMovement.productId);
+        if (!firstRangeProduct)
+            throw new Error("Product not found for first range movement");
+
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date(2026, 10, 6, 18, 0));
 
         const { router } = await renderWithRouter("/movements");
         await screen.findByText(formatCount(total));
@@ -77,6 +101,10 @@ describe("Preset filter", () => {
             `from=${expectedFrom}`,
         );
         expect(router.state.location.searchStr).toContain(`to=${expectedTo}`);
+
+        const rows = getBodyRows();
+        expect(rows[0]).toHaveTextContent(firstRangeProduct.name);
+        expect(rows[0]).toHaveTextContent(firstRangeMovement.reference);
     });
 });
 
@@ -141,8 +169,14 @@ describe("Unknown product", () => {
 
         await screen.findByText("This product doesn't exist");
 
+        const errorContainer = screen
+            .getByText("This product doesn't exist")
+            .closest("div");
+        if (!errorContainer) throw new Error("Error state container not found");
         await user.click(
-            screen.getAllByRole("button", { name: "Clear product filter" })[0],
+            within(errorContainer).getByRole("button", {
+                name: "Clear product filter",
+            }),
         );
 
         await screen.findByText(formatCount(total));
@@ -161,8 +195,14 @@ describe("Empty with filters", () => {
 
         await screen.findByText("No movements match these filters");
 
+        const emptyContainer = screen
+            .getByText("No movements match these filters")
+            .closest("div");
+        if (!emptyContainer) throw new Error("Empty state container not found");
         await user.click(
-            screen.getAllByRole("button", { name: "Clear filters" })[0],
+            within(emptyContainer).getByRole("button", {
+                name: "Clear filters",
+            }),
         );
 
         await screen.findByText(formatCount(total));
