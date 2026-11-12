@@ -23,4 +23,5 @@ const extendedApi = baseApi.injectEndpoints({
     }),
 });
 
+export const movementsApi = extendedApi;
 export const { useGetMovementsQuery } = extendedApi;

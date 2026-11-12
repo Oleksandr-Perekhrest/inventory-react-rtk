@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { CatalogDndProvider } from "./CatalogDndProvider";
 import { useGetCategoriesQuery } from "@/api/endpoints/categories";
+import { FullHeightPage } from "@/components/layout/FullHeightPage";
 import { CategoryTree } from "@/features/category-tree/CategoryTree";
 import { ProductsTable } from "@/features/products-table/ProductsTable";
 import { useSelectedCategoryId } from "@/features/catalog/useCatalogSearch";
@@ -54,11 +55,12 @@ export function CatalogPage() {
 
     return (
         <CatalogDndProvider>
-            <div className="p-6">
-                <h1 className="mb-6 text-2xl font-semibold">Catalog</h1>
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+            <FullHeightPage
+                header={<h1 className="text-2xl font-semibold">Catalog</h1>}
+            >
+                <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
                     {isDesktop ? (
-                        <div className="w-64 shrink-0">
+                        <div className="w-64 shrink-0 min-h-0 overflow-y-auto">
                             <CategoryTree />
                         </div>
                     ) : (
@@ -110,14 +112,14 @@ export function CatalogPage() {
                             </SheetContent>
                         </Sheet>
                     )}
-                    <div className="flex min-w-0 flex-1 flex-col gap-3">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
                         <ProductsTableHeader />
                         <ProductsToolbar />
                         <ProductsTable />
                         <ProductsPagination />
                     </div>
                 </div>
-            </div>
+            </FullHeightPage>
         </CatalogDndProvider>
     );
 }

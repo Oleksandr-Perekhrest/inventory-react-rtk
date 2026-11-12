@@ -7,6 +7,9 @@ import { it, expect, afterAll, describe, afterEach, beforeAll } from "vitest";
 import { setBackendReady } from "@/api/backendReady";
 import { createMockServer } from "@/test/mockServer";
 import { renderWithRouter } from "@/test/renderWithRouter";
+import { CATALOG_SEARCH_DEFAULTS } from "@/features/catalog/catalogSearch";
+
+const PAGE_SIZE = CATALOG_SEARCH_DEFAULTS.pageSize;
 
 const { db, server } = createMockServer();
 
@@ -354,7 +357,9 @@ describe("Tree ↔ URL ↔ table integration (T2b)", () => {
         const user = userEvent.setup();
         const total = db.products.length;
         const { router } = await renderWithRouter("/catalog?page=2");
-        await screen.findByText(`21–${Math.min(40, total)} of ${total}`);
+        await screen.findByText(
+            `${PAGE_SIZE + 1}–${Math.min(PAGE_SIZE * 2, total)} of ${total}`,
+        );
         await waitForTreeLoaded();
 
         const treeEl = screen.getByRole("tree");

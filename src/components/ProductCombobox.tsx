@@ -16,7 +16,7 @@ type Props = {
     id: string;
     value: string;
     onChange: (product: Product) => void;
-    onBlur: () => void;
+    onBlur?: () => void;
     "aria-invalid"?: true;
     "aria-describedby"?: string;
     ref?: Ref<HTMLInputElement>;
@@ -93,7 +93,7 @@ export function ProductCombobox({
 
     function handleBlur() {
         setOpen(false);
-        onBlur();
+        onBlur?.();
     }
 
     function selectProduct(product: Product) {

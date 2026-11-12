@@ -24,8 +24,8 @@ describe("catalogSearchSchema", () => {
             expect(result.page).toBe(1);
         });
 
-        it("defaults pageSize to 20", () => {
-            expect(result.pageSize).toBe(20);
+        it(`defaults pageSize to ${CATALOG_SEARCH_DEFAULTS.pageSize}`, () => {
+            expect(result.pageSize).toBe(CATALOG_SEARCH_DEFAULTS.pageSize);
         });
 
         it("leaves optional fields undefined", () => {
@@ -88,15 +88,15 @@ describe("catalogSearchSchema", () => {
             expect(catalogSearchSchema.parse({ page: 1.5 }).page).toBe(1);
         });
 
-        it("pageSize 0 → 20", () => {
+        it(`pageSize 0 → ${CATALOG_SEARCH_DEFAULTS.pageSize}`, () => {
             expect(catalogSearchSchema.parse({ pageSize: 0 }).pageSize).toBe(
-                20,
+                CATALOG_SEARCH_DEFAULTS.pageSize,
             );
         });
 
-        it("pageSize 101 → 20", () => {
+        it(`pageSize 101 → ${CATALOG_SEARCH_DEFAULTS.pageSize}`, () => {
             expect(catalogSearchSchema.parse({ pageSize: 101 }).pageSize).toBe(
-                20,
+                CATALOG_SEARCH_DEFAULTS.pageSize,
             );
         });
 

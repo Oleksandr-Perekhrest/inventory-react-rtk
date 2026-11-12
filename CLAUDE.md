@@ -48,6 +48,8 @@ Route files export only `Route`; page components stay unexported in the route fi
 
 `src/mocks/db/` is the mock backend's in-memory database. All writes go through `transaction()` — never mutate the exposed readonly arrays directly. Bump `DB_VERSION` in `storage.ts` whenever the shape of stored data changes (old persisted data will be discarded and re-seeded).
 
+**URL search state:** one thin hook per route (`useCatalogSearch`, `useJournalSearch`) built on `applySearchPatch` from `src/lib/search.ts`; never hardcode the list of keys that reset the page. Search schemas use `.catch` so invalid values are dropped; defaults are stripped from the URL with `stripSearchParams(DEFAULTS)`.
+
 ## Code style
 
 - **Indentation:** 4 spaces (Prettier `tabWidth: 4`); JSON, YAML, and Markdown use 2. Prettier defaults otherwise (double quotes, semicolons).
@@ -79,6 +81,8 @@ import { formatPrice } from "../../utils/format";
 - `font-sans` (IBM Plex Sans) for text; `font-mono` (IBM Plex Mono) for SKUs, numbers, breadcrumbs, table headers and status badges.
 - Corners: `rounded-sm` for panels and controls.
 - Reference screen: `/design-preview` (`src/components/design-preview/`) shows the catalog layout, panel and table header styles, the stock meter and the LOW/OUT badges. New screens follow it. It is static and will be removed when the real catalog replaces it: never import from it.
+- **Layout:** `SidebarInset` is the scroll container (`h-dvh overflow-y-auto`); the window does not scroll. Pages that fill the visible height use `src/components/layout/FullHeightPage` (header / children / footer). Tables inside them: card `flex-1 min-h-0 overflow-hidden`, `Table` `containerClassName="h-full overflow-auto"`, sticky header row with an opaque background.
+- **Shared UI:** `TablePagination` (`src/components`) for paginated tables, with a thin per-feature wrapper for prefetch and the out-of-range redirect; `ProductCombobox` lives in `src/components`.
 
 ## Data layer
 
@@ -96,6 +100,7 @@ import { formatPrice } from "../../utils/format";
 
 - Mutations: `invalidatesTags` returns `[]` on error (never invalidate on a failed write).
 - Movement dates from a local date + "now": use `combineLocalDateWithTime` (`src/lib/date.ts`), never `date + toISOString().slice(10)`.
+- **Dates:** movement dates are stored as UTC ISO strings; filters and display use the user's local date (`toLocalIsoDate`, `formatLocalDate`). Never parse a date-only string with `new Date("YYYY-MM-DD")` — it is interpreted as UTC.
 
 ## Mock API
 
@@ -135,3 +140,8 @@ Open `stats.html` in a browser to see the interactive treemap. Main browser-chun
 - Report format: files changed (one line each), check results, anything skipped or not done.
 - Wizard UI tests start from a draft pre-seeded in storage at the target step (see `ReceivingWizard.posting.test.tsx`) instead of typing through earlier steps.
 - A test that pins a bug fix must be shown to fail without the fix before it is committed.
+- A module-level `Intl.DateTimeFormat` keeps the time zone it was created in, so `vi.stubEnv("TZ")` has no effect on it: stub TZ, then `vi.resetModules()` and re-import the module dynamically.
+- To pin "today", fake only the Date object: `vi.useFakeTimers({ toFake: ["Date"] })` + `vi.setSystemTime`; restore in `afterEach`.
+- MSW 3: `server.listen({ onUnhandledFrame: "error" })` (`onUnhandledRequest` was renamed to `onUnhandledFrame`).
+- Page sizes and counts in tests come from the `DEFAULTS` constants and the db, never from literals like `20`.
+- When the same button exists in both the toolbar and an empty/error state, scope the query with `within()` on the state the scenario is testing.

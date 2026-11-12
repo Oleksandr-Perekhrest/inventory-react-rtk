@@ -8,7 +8,7 @@ export const CATALOG_SEARCH_DEFAULTS = {
     sort: "name",
     order: "asc",
     page: 1,
-    pageSize: 20,
+    pageSize: 10,
 } as const;
 
 export const catalogSearchSchema = z.object({
