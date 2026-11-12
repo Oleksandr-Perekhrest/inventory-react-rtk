@@ -12,6 +12,7 @@ import {
     type ReceivingStep,
     createLinesStepSchema,
     createDocumentStepSchema,
+    createReconciliationStepSchema,
 } from "@/domain/receiving";
 
 type FieldErrors = Record<string, string>;
@@ -61,6 +62,15 @@ function validateCurrentStep(
             getProduct,
             documentDate: value.document.date,
         });
+        const result = schema.safeParse(value.lines);
+        if (!result.success) {
+            return {
+                fields: mapIssuesToFields(result.error.issues, "lines"),
+            };
+        }
+    }
+    if (value.step === "reconciliation") {
+        const schema = createReconciliationStepSchema({ getProduct });
         const result = schema.safeParse(value.lines);
         if (!result.success) {
             return {

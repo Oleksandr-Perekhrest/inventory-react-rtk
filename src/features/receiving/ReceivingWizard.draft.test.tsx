@@ -54,7 +54,7 @@ describe("Restore draft (T7)", () => {
         const stepItems = within(stepList).getAllByRole("listitem");
         expect(stepItems[1]).toHaveAttribute("aria-current", "step");
         expect(
-            screen.getByRole("button", { name: "Continue" }),
+            screen.getByRole("button", { name: "Add line" }),
         ).toBeInTheDocument();
 
         // Back → Document step shows the restored supplier and invoice number
@@ -85,7 +85,7 @@ describe("Discard restored draft (T8)", () => {
         });
 
         // Lines step loaded from draft
-        await screen.findByRole("button", { name: "Continue" });
+        await screen.findByRole("button", { name: "Add line" });
 
         // Open discard dialog
         await user.click(screen.getByRole("button", { name: "Discard draft" }));
@@ -105,7 +105,7 @@ describe("Discard restored draft (T8)", () => {
         // Form is reset: Document step, empty invoice
         await waitFor(() =>
             expect(
-                screen.queryByRole("button", { name: "Continue" }),
+                screen.queryByRole("button", { name: "Add line" }),
             ).not.toBeInTheDocument(),
         );
         expect(screen.getByLabelText("Invoice number")).toHaveValue("");

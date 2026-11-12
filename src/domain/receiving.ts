@@ -16,7 +16,7 @@ export const receiptLineDraftSchema = z.object({
     id: z.string(),
     productId: z.string(),
     expectedQuantity: z.number().nullable(),
-    actualQuantity: z.number().optional(),
+    actualQuantity: z.number().nullable().optional(),
     discrepancyNote: z.string().optional(),
     batch: z.string(),
     expiryDate: z.string(),
@@ -45,7 +45,8 @@ export function createEmptyLine(id: string): ReceiptLineDraft {
 }
 
 export function getActualQuantity(line: ReceiptLineDraft): number | null {
-    return line.actualQuantity ?? line.expectedQuantity;
+    if (line.actualQuantity === undefined) return line.expectedQuantity;
+    return line.actualQuantity;
 }
 
 export function hasDiscrepancy(line: ReceiptLineDraft): boolean {
@@ -192,7 +193,14 @@ export function createReconciliationStepSchema({
             if (!product) continue;
 
             const actual = getActualQuantity(line);
-            if (actual === null) continue;
+            if (actual === null) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: [i, "actualQuantity"],
+                    message: "Enter the actual quantity",
+                });
+                continue;
+            }
 
             validateActualQuantity(actual, product, i, ctx);
 
@@ -290,7 +298,8 @@ export function buildReceiptPayload(draft: ReceiptDraft): ReceiptPayload {
         lines: draft.lines.flatMap((line) => {
             const expectedQuantity = line.expectedQuantity;
             if (expectedQuantity === null) return [];
-            const actualQuantity = line.actualQuantity ?? expectedQuantity;
+            const actualQuantity = getActualQuantity(line);
+            if (actualQuantity === null) return [];
             const payloadLine: ReceiptPayload["lines"][number] = {
                 productId: line.productId,
                 expectedQuantity,

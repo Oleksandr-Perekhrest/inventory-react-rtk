@@ -37,15 +37,6 @@ import {
     SelectTrigger,
 } from "@/components/ui/select";
 import {
-    getNextStep,
-    createEmptyLine,
-    getPreviousStep,
-    RECEIVING_STEPS,
-    createEmptyDraft,
-    type ReceivingStep,
-    type ReceiptLineDraft,
-} from "@/domain/receiving";
-import {
     AlertDialog,
     AlertDialogTitle,
     AlertDialogAction,
@@ -55,6 +46,17 @@ import {
     AlertDialogContent,
     AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
+import {
+    getNextStep,
+    hasDiscrepancy,
+    createEmptyLine,
+    getPreviousStep,
+    RECEIVING_STEPS,
+    createEmptyDraft,
+    getActualQuantity,
+    type ReceivingStep,
+    type ReceiptLineDraft,
+} from "@/domain/receiving";
 
 const STEP_LABELS: Record<ReceivingStep, string> = {
     document: "Document",
@@ -77,6 +79,12 @@ function nextIsoDay(isoDate: string): string {
     const d = parts[2];
     if (!y || !m || !d) return "";
     return toLocalIsoDate(new Date(Number(y), Number(m) - 1, Number(d) + 1));
+}
+
+function formatDiff(diff: number, unit: string): string {
+    const sign = diff >= 0 ? "+" : "−";
+    const absStr = String(parseFloat(Math.abs(diff).toFixed(3)));
+    return `${sign}${absStr} ${unit}`;
 }
 
 type InnerHandle = { cancelSync: () => void };
@@ -153,7 +161,6 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
             persistedDraft ??
             createEmptyDraft(toLocalIsoDate(new Date()), crypto.randomUUID()),
     );
-    const [linesComplete, setLinesComplete] = useState(false);
 
     const suppliersQuery = useGetSuppliersQuery();
     const suppliers = suppliersQuery.data;
@@ -171,9 +178,7 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
     const { form } = useReceivingForm({
         initialDraft,
         supplierExists,
-        onComplete: () => setLinesComplete(true),
         onInvalid: () => {
-            setLinesComplete(false);
             queueMicrotask(() => {
                 const invalid = formRef.current?.querySelector<HTMLElement>(
                     '[aria-invalid="true"]',
@@ -222,18 +227,6 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
         if (blocker.status === "blocked") blocker.proceed();
     }, [blocker]);
 
-    // Reset the completion notice whenever form values change
-    const prevValuesRef = useRef(form.state.values);
-    useEffect(() => {
-        const sub = form.store.subscribe((state) => {
-            if (state.values !== prevValuesRef.current) {
-                prevValuesRef.current = state.values;
-                setLinesComplete(false);
-            }
-        });
-        return () => sub.unsubscribe();
-    }, [form.store]);
-
     const handleFormSubmit = useCallback(
         (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
@@ -273,12 +266,16 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
                                 suppliersError={suppliersQuery.error}
                                 refetchSuppliers={suppliersQuery.refetch}
                             />
-                        ) : (
+                        ) : currentStep === "lines" ? (
                             <LinesStep
                                 form={form}
                                 documentDate={documentDate}
                                 lines={lines}
                             />
+                        ) : currentStep === "reconciliation" ? (
+                            <ReconciliationStep form={form} lines={lines} />
+                        ) : (
+                            <ReviewStep />
                         )
                     }
                 </form.Subscribe>
@@ -287,10 +284,9 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
                     selector={(state) => ({
                         step: state.values.step,
                         isSubmitting: state.isSubmitting,
-                        lines: state.values.lines,
                     })}
                 >
-                    {({ step, isSubmitting, lines }) => {
+                    {({ step, isSubmitting }) => {
                         const back = getPreviousStep(step);
                         const next = getNextStep(step);
                         const suppliersUnavailable =
@@ -298,34 +294,51 @@ function ReceivingWizardInner({ ref }: { ref: Ref<InnerHandle> }) {
                             (suppliersQuery.isLoading ||
                                 Boolean(suppliersQuery.error));
                         return (
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={!back}
-                                    onClick={() => {
-                                        if (back) {
-                                            form.setFieldValue("step", back);
-                                        }
-                                    }}
-                                >
-                                    Back
-                                </Button>
-                                {next ? (
+                            <div className="flex flex-col gap-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
                                     <Button
-                                        type="submit"
-                                        disabled={
-                                            isSubmitting || suppliersUnavailable
-                                        }
+                                        type="button"
+                                        variant="outline"
+                                        disabled={!back}
+                                        onClick={() => {
+                                            if (back) {
+                                                form.setFieldValue(
+                                                    "step",
+                                                    back,
+                                                );
+                                            }
+                                        }}
                                     >
-                                        Next
+                                        Back
                                     </Button>
-                                ) : (
-                                    <LinesSubmitButton
-                                        isSubmitting={isSubmitting}
-                                        lines={lines}
-                                        linesComplete={linesComplete}
-                                    />
+                                    {next !== null ? (
+                                        <Button
+                                            type="submit"
+                                            disabled={
+                                                isSubmitting ||
+                                                suppliersUnavailable
+                                            }
+                                        >
+                                            Next
+                                        </Button>
+                                    ) : null}
+                                </div>
+                                {step === "reconciliation" && (
+                                    <form.Field name="lines">
+                                        {(f) => {
+                                            const err = firstErrorText(
+                                                f.state.meta.errors,
+                                            );
+                                            return err ? (
+                                                <p
+                                                    role="alert"
+                                                    className="text-sm text-destructive"
+                                                >
+                                                    {err}
+                                                </p>
+                                            ) : null;
+                                        }}
+                                    </form.Field>
                                 )}
                             </div>
                         );
@@ -712,42 +725,6 @@ function LineRow({
     );
 }
 
-type LinesSubmitButtonProps = {
-    isSubmitting: boolean;
-    lines: ReceiptLineDraft[];
-    linesComplete: boolean;
-};
-
-function LinesSubmitButton({
-    isSubmitting,
-    lines,
-    linesComplete,
-}: LinesSubmitButtonProps) {
-    const anyProductNotReady = useAppSelector((rootState) =>
-        lines.some((line) => {
-            if (!line.productId) return false;
-            return (
-                productsApi.endpoints.getProduct.select(line.productId)(
-                    rootState,
-                ).status !== "fulfilled"
-            );
-        }),
-    );
-
-    return (
-        <>
-            <Button type="submit" disabled={isSubmitting || anyProductNotReady}>
-                Continue
-            </Button>
-            <p role="status" className="w-full text-sm text-muted-foreground">
-                {linesComplete
-                    ? "Lines are complete — reconciliation comes in the next stage."
-                    : ""}
-            </p>
-        </>
-    );
-}
-
 type LinesStepProps = {
     form: ReceivingForm;
     documentDate: string;
@@ -853,6 +830,177 @@ function LinesStep({ form, documentDate, lines }: LinesStepProps) {
             >
                 Add line
             </Button>
+        </div>
+    );
+}
+
+type ReconciliationStepProps = {
+    form: ReceivingForm;
+    lines: ReceiptLineDraft[];
+};
+
+function ReconciliationStep({ form, lines }: ReconciliationStepProps) {
+    const discrepancyCount = lines.filter(hasDiscrepancy).length;
+    return (
+        <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+                {lines.length} {lines.length === 1 ? "line" : "lines"} &middot;{" "}
+                {discrepancyCount} with{" "}
+                {discrepancyCount === 1 ? "discrepancy" : "discrepancies"}
+            </p>
+            {lines.map((line, i) => (
+                <ReconciliationRow
+                    key={line.id}
+                    form={form}
+                    i={i}
+                    line={line}
+                />
+            ))}
+        </div>
+    );
+}
+
+type ReconciliationRowProps = {
+    form: ReceivingForm;
+    i: number;
+    line: ReceiptLineDraft;
+};
+
+function ReconciliationRow({ form, i, line }: ReconciliationRowProps) {
+    const { data: product } = useGetProductQuery(line.productId, {
+        skip: !line.productId,
+    });
+    const actual = getActualQuantity(line);
+    const discrepancy = hasDiscrepancy(line);
+
+    return (
+        <div
+            data-discrepancy={discrepancy ? "true" : undefined}
+            className={
+                "flex flex-col gap-3 rounded-sm border p-4 " +
+                (discrepancy
+                    ? "border-warning-foreground bg-warning"
+                    : "border-border bg-card")
+            }
+        >
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">
+                    {product?.name ?? line.productId}
+                </span>
+                {product && (
+                    <span className="font-mono text-xs text-muted-foreground">
+                        {formatUnit(product.unit)}
+                    </span>
+                )}
+            </div>
+
+            {(line.batch || line.expiryDate) && (
+                <div className="flex flex-wrap gap-4 font-mono text-sm text-muted-foreground">
+                    {line.batch && <span>Batch: {line.batch}</span>}
+                    {line.expiryDate && <span>Expiry: {line.expiryDate}</span>}
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                    <span className="text-sm font-medium leading-none">
+                        Expected quantity
+                    </span>
+                    <div className="flex h-8 items-center gap-1 font-mono text-sm">
+                        <span>
+                            {line.expectedQuantity !== null
+                                ? line.expectedQuantity
+                                : "—"}
+                        </span>
+                        {product && (
+                            <span className="text-muted-foreground">
+                                {formatUnit(product.unit)}
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <form.Field name={`lines[${i}].actualQuantity`}>
+                    {(field) => (
+                        <FormField
+                            name={field.name}
+                            label="Actual quantity"
+                            error={firstErrorText(field.state.meta.errors)}
+                        >
+                            {(fieldProps) => (
+                                <div className="flex">
+                                    <Input
+                                        {...fieldProps}
+                                        type="number"
+                                        inputMode="decimal"
+                                        step="any"
+                                        className="rounded-r-none border-r-0"
+                                        value={actual ?? ""}
+                                        onChange={(e) => {
+                                            const raw = parseFloat(
+                                                e.target.value,
+                                            );
+                                            field.handleChange(
+                                                isNaN(raw) ? null : raw,
+                                            );
+                                        }}
+                                        onBlur={field.handleBlur}
+                                    />
+                                    <LineUnitSuffix
+                                        productId={line.productId}
+                                    />
+                                </div>
+                            )}
+                        </FormField>
+                    )}
+                </form.Field>
+            </div>
+
+            {discrepancy &&
+                actual !== null &&
+                line.expectedQuantity !== null &&
+                product && (
+                    <p className="font-mono text-sm">
+                        {formatDiff(
+                            actual - line.expectedQuantity,
+                            formatUnit(product.unit),
+                        )}
+                    </p>
+                )}
+
+            {discrepancy && (
+                <form.Field name={`lines[${i}].discrepancyNote`}>
+                    {(field) => (
+                        <FormField
+                            name={field.name}
+                            label="Discrepancy note"
+                            error={firstErrorText(field.state.meta.errors)}
+                        >
+                            {(fieldProps) => (
+                                <textarea
+                                    {...fieldProps}
+                                    rows={3}
+                                    maxLength={500}
+                                    className="w-full min-w-0 resize-none rounded-sm border border-input bg-transparent px-2.5 py-1.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
+                                    value={field.state.value ?? ""}
+                                    onChange={(e) =>
+                                        field.handleChange(e.target.value)
+                                    }
+                                    onBlur={field.handleBlur}
+                                />
+                            )}
+                        </FormField>
+                    )}
+                </form.Field>
+            )}
+        </div>
+    );
+}
+
+function ReviewStep() {
+    return (
+        <div className="rounded-sm border border-border bg-card p-4">
+            <h2 className="text-lg font-semibold">Review</h2>
         </div>
     );
 }
