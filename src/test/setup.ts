@@ -1,7 +1,10 @@
 // outsource dependencies
 import "@testing-library/jest-dom/vitest";
 import { afterEach } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
+
+// slow jsdom integration tests under parallel load; same reason as testTimeout 15 s
+configure({ asyncUtilTimeout: 3000 });
 
 afterEach(cleanup);
 
@@ -42,3 +45,10 @@ class ResizeObserverStub {
     disconnect() {}
 }
 globalThis.ResizeObserver ??= ResizeObserverStub;
+
+// Radix Select uses pointer capture and scroll APIs not implemented in jsdom
+if (typeof Element !== "undefined") {
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => {};
+    Element.prototype.scrollIntoView ??= () => {};
+}

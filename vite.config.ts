@@ -43,7 +43,7 @@ export default defineConfig({
                         },
                         {
                             name: "vendor-router",
-                            test: /[\\/]node_modules[\\/]@tanstack[\\/]/,
+                            test: /[\\/]node_modules[\\/]@tanstack[\\/](react-router|router-core|history|react-store|store)[\\/]/,
                             priority: 9,
                         },
                         {
@@ -80,5 +80,8 @@ export default defineConfig({
         environment: "jsdom",
         setupFiles: ["src/test/setup.ts"],
         globals: false,
+        // UI integration tests (router + store + MSW + userEvent) take 4–6 s under load;
+        // the default 5 s limit made them fail on time, not on behavior.
+        testTimeout: 15_000,
     },
 });
