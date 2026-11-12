@@ -28,17 +28,18 @@ import { useReceivingForm, type ReceivingForm } from "./useReceivingForm";
 import { productsApi, useGetProductQuery } from "@/api/endpoints/products";
 import { useAppStore, useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
-    draftDiscarded,
-    selectReceivingDraft,
-    selectHasReceivingDraft,
-} from "./receivingDraftSlice";
-import {
     Select,
     SelectItem,
     SelectValue,
     SelectContent,
     SelectTrigger,
 } from "@/components/ui/select";
+import {
+    draftDiscarded,
+    selectResetNonce,
+    selectReceivingDraft,
+    selectHasReceivingDraft,
+} from "./receivingDraftSlice";
 import {
     AlertDialog,
     AlertDialogTitle,
@@ -97,12 +98,27 @@ type PostedState = { response: ReceiptResponse; supplierName: string };
 
 export function ReceivingWizard() {
     const hasDraft = useAppSelector(selectHasReceivingDraft);
+    const resetNonce = useAppSelector(selectResetNonce);
     const dispatch = useAppDispatch();
     const [formKey, setFormKey] = useState(0);
     const [discardOpen, setDiscardOpen] = useState(false);
     const [posted, setPosted] = useState<PostedState | null>(null);
     const headingRef = useRef<HTMLHeadingElement>(null);
     const innerRef = useRef<InnerHandle>(null);
+    const isFirstResetRef = useRef(true);
+
+    useEffect(() => {
+        if (isFirstResetRef.current) {
+            isFirstResetRef.current = false;
+            return;
+        }
+        innerRef.current?.cancelSync();
+        setPosted(null);
+        setFormKey((k) => k + 1);
+        queueMicrotask(() => {
+            headingRef.current?.focus();
+        });
+    }, [resetNonce]);
 
     const handleDiscardConfirm = useCallback(() => {
         innerRef.current?.cancelSync();

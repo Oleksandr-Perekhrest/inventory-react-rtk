@@ -59,7 +59,7 @@ const draft: ReceiptDraft = {
 
 describe("receivingDraftSlice reducers", () => {
     const { reducer } = receivingDraftSlice;
-    const initial = { draft: null };
+    const initial = { draft: null, resetNonce: 0 };
 
     it("draftStarted stores the draft", () => {
         const state = reducer(initial, draftStarted(draft));
@@ -72,7 +72,7 @@ describe("receivingDraftSlice reducers", () => {
     });
 
     it("draftDiscarded clears the draft", () => {
-        const withDraft = { draft };
+        const withDraft = { draft, resetNonce: 0 };
         const state = reducer(withDraft, draftDiscarded());
         expect(state.draft).toBeNull();
     });
