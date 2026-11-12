@@ -127,7 +127,7 @@ export function ProductsTable() {
     if (isError && !data) {
         if (getErrorStatus(error) === 404 && search.categoryId !== undefined) {
             return (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-sm border bg-card p-8 text-sm text-muted-foreground">
+                <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-2 rounded-sm border bg-card p-8 text-sm text-muted-foreground">
                     <span>{"This category doesn't exist"}</span>
                     <Button
                         variant="outline"
@@ -142,7 +142,7 @@ export function ProductsTable() {
         return (
             <div
                 role="alert"
-                className="flex flex-col gap-2 rounded-sm border bg-card p-4 text-sm text-destructive"
+                className="flex flex-1 min-h-0 flex-col gap-2 rounded-sm border bg-card p-4 text-sm text-destructive"
             >
                 <span>{getErrorMessage(error)}</span>
                 <Button
@@ -159,7 +159,7 @@ export function ProductsTable() {
 
     return (
         <ProductMoveContext.Provider value={moveContextValue}>
-            <>
+            <div className="flex flex-1 min-h-0 flex-col gap-2">
                 {isError && data && (
                     <div
                         role="alert"
@@ -177,13 +177,16 @@ export function ProductsTable() {
                 )}
                 <div
                     className={cn(
-                        "overflow-hidden rounded-sm border bg-card",
+                        "flex-1 min-h-0 overflow-hidden rounded-sm border bg-card",
                         isFetching && !!data && "opacity-60",
                     )}
                     aria-busy={isFetching && !!data ? true : undefined}
                 >
-                    <Table className="min-w-176">
-                        <TableHeader>
+                    <Table
+                        className="min-w-176"
+                        containerClassName="h-full overflow-auto"
+                    >
+                        <TableHeader className="sticky top-0 z-10 bg-muted">
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <TableRow
                                     key={headerGroup.id}
@@ -347,7 +350,7 @@ export function ProductsTable() {
                         });
                     }}
                 />
-            </>
+            </div>
         </ProductMoveContext.Provider>
     );
 }

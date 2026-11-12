@@ -8,6 +8,9 @@ import { it, expect, afterAll, describe, afterEach, beforeAll } from "vitest";
 import { setBackendReady } from "@/api/backendReady";
 import { createMockServer } from "@/test/mockServer";
 import { renderWithRouter } from "@/test/renderWithRouter";
+import { CATALOG_SEARCH_DEFAULTS } from "@/features/catalog/catalogSearch";
+
+const PAGE_SIZE = CATALOG_SEARCH_DEFAULTS.pageSize;
 
 const { db, server } = createMockServer();
 
@@ -47,7 +50,7 @@ afterEach(() => {
 });
 
 describe("Rendering", () => {
-    it("shows h2 All products, N products count, 20 rows, first page in name-asc order", async () => {
+    it(`shows h2 All products, N products count, ${PAGE_SIZE} rows, first page in name-asc order`, async () => {
         const total = db.products.length;
         const sorted = mirrorSort(db.products, "name", "asc");
         await renderWithRouter("/catalog");
@@ -58,9 +61,11 @@ describe("Rendering", () => {
 
         await screen.findByText(`${total} products`);
         const rows = getBodyRows();
-        expect(rows).toHaveLength(20);
+        expect(rows).toHaveLength(PAGE_SIZE);
         expect(rows[0]).toHaveTextContent(sorted[0].name);
-        expect(rows[19]).toHaveTextContent(sorted[19].name);
+        expect(rows[PAGE_SIZE - 1]).toHaveTextContent(
+            sorted[PAGE_SIZE - 1].name,
+        );
     });
 });
 
@@ -235,7 +240,7 @@ describe("Stock filter", () => {
         );
 
         const rows = getBodyRows();
-        expect(rows).toHaveLength(Math.min(low.length, 20));
+        expect(rows).toHaveLength(Math.min(low.length, PAGE_SIZE));
         for (const row of rows) {
             expect(within(row).getByText("Low")).toBeInTheDocument();
         }
@@ -245,7 +250,9 @@ describe("Stock filter", () => {
         const user = userEvent.setup();
         const total = db.products.length;
         const { router } = await renderWithRouter("/catalog?page=2");
-        await screen.findByText(`21–40 of ${total}`);
+        await screen.findByText(
+            `${PAGE_SIZE + 1}–${Math.min(PAGE_SIZE * 2, total)} of ${total}`,
+        );
 
         const histBefore = router.history.length;
         // All is already selected (stock is undefined by default)
@@ -263,10 +270,10 @@ describe("Stock filter", () => {
 });
 
 describe("Pagination", () => {
-    it("Next page shows range 21–N of total, URL page=2; Previous disabled on page 1; Next disabled on last page", async () => {
+    it(`Next page shows range ${PAGE_SIZE + 1}–N of total, URL page=2; Previous disabled on page 1; Next disabled on last page`, async () => {
         const user = userEvent.setup();
         const total = db.products.length;
-        const pageSize = 20;
+        const pageSize = PAGE_SIZE;
         const lastPage = Math.ceil(total / pageSize);
         const { router } = await renderWithRouter("/catalog");
         await screen.findByText(`${total} products`);
@@ -279,7 +286,9 @@ describe("Pagination", () => {
         ).not.toBeDisabled();
 
         await user.click(screen.getByRole("button", { name: "Next page" }));
-        await screen.findByText(`21–${Math.min(40, total)} of ${total}`);
+        await screen.findByText(
+            `${PAGE_SIZE + 1}–${Math.min(PAGE_SIZE * 2, total)} of ${total}`,
+        );
         expect(router.state.location.searchStr).toContain("page=2");
 
         // Navigate to last page by clicking Next repeatedly
@@ -300,9 +309,9 @@ describe("Pagination", () => {
 
     it("/catalog?page=999 redirects to the last page and shows its rows", async () => {
         const total = db.products.length;
-        const lastPage = Math.ceil(total / 20);
+        const lastPage = Math.ceil(total / PAGE_SIZE);
         const sorted = mirrorSort(db.products, "name", "asc");
-        const lastPageProducts = sorted.slice((lastPage - 1) * 20);
+        const lastPageProducts = sorted.slice((lastPage - 1) * PAGE_SIZE);
 
         const { router } = await renderWithRouter("/catalog?page=999");
 
@@ -324,7 +333,9 @@ describe("Pagination", () => {
         const user = userEvent.setup();
         const total = db.products.length;
         const { router } = await renderWithRouter("/catalog?page=2");
-        await screen.findByText(`21–40 of ${total}`);
+        await screen.findByText(
+            `${PAGE_SIZE + 1}–${Math.min(PAGE_SIZE * 2, total)} of ${total}`,
+        );
 
         await user.selectOptions(
             screen.getByRole("combobox", { name: /rows per page/i }),
@@ -343,7 +354,9 @@ describe("Pagination", () => {
         const total = db.products.length;
         const low = lowProducts(db.products);
         const { router } = await renderWithRouter("/catalog?page=2");
-        await screen.findByText(`21–40 of ${total}`);
+        await screen.findByText(
+            `${PAGE_SIZE + 1}–${Math.min(PAGE_SIZE * 2, total)} of ${total}`,
+        );
 
         await user.click(screen.getByRole("button", { name: "Low" }));
 
@@ -389,7 +402,7 @@ describe("States", () => {
         await screen.findByText(`${total} products`);
         expect(router.state.location.searchStr).not.toContain("q=");
         expect(router.state.location.searchStr).not.toContain("stock=");
-        expect(getBodyRows()).toHaveLength(20);
+        expect(getBodyRows()).toHaveLength(PAGE_SIZE);
     });
 
     it("error without data: shows alert with message and Retry; no table; Retry loads rows", async () => {
@@ -433,8 +446,8 @@ describe("States", () => {
 
         await renderWithRouter("/catalog");
         await screen.findByText(`${total} products`);
-        // Confirm 20 rows loaded on page 1
-        expect(getBodyRows()).toHaveLength(20);
+        // Confirm PAGE_SIZE rows loaded on page 1
+        expect(getBodyRows()).toHaveLength(PAGE_SIZE);
 
         // All future /api/products requests now fail
         server.use(
@@ -463,6 +476,6 @@ describe("States", () => {
             screen.getByRole("button", { name: /retry/i }),
         ).toBeInTheDocument();
         expect(screen.getByRole("table")).toBeInTheDocument();
-        expect(getBodyRows()).toHaveLength(20);
+        expect(getBodyRows()).toHaveLength(PAGE_SIZE);
     });
 });
