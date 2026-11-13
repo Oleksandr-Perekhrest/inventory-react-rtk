@@ -20,7 +20,14 @@ test("/dashboard has no accessibility violations", async ({ page }) => {
     await expect(
         page.getByRole("heading", { level: 1, name: "Dashboard" }),
     ).toBeVisible();
-    await expect(page.getByText("Stock value")).toBeVisible();
+    // "Stock value" is a card label rendered before data (values are skeletons);
+    // the chart's role="img" label only exists once the dashboard data has loaded.
+    await expect(
+        page.getByRole("img", {
+            name: /^Inflow and outflow over the last 30 days/,
+        }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "View all" })).toBeVisible();
     await expectNoA11yViolations(page, "/dashboard");
 });
 
