@@ -25,3 +25,8 @@ stats.html
 *.sw?
 
 .vitest/
+
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

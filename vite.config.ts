@@ -85,6 +85,7 @@ export default defineConfig({
         environment: "jsdom",
         setupFiles: ["src/test/setup.ts"],
         globals: false,
+        include: ["src/**/*.test.{ts,tsx}"],
         // UI integration tests (router + store + MSW + userEvent) take 4–6 s under load;
         // the default 5 s limit made them fail on time, not on behavior.
         testTimeout: 15_000,
