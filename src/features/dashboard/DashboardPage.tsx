@@ -1,4 +1,5 @@
 // local dependencies
+import { FlowChart } from "./FlowChart";
 import { MetricCards } from "./MetricCards";
 import { RunningLowPanel } from "./RunningLowPanel";
 import { RecentMovementsPanel } from "./RecentMovementsPanel";
@@ -13,6 +14,9 @@ export function DashboardPage() {
                 </p>
             </div>
             <MetricCards />
+            <div className="min-w-0">
+                <FlowChart />
+            </div>
             <div className="grid gap-6 lg:grid-cols-2">
                 <div className="min-w-0">
                     <RunningLowPanel />

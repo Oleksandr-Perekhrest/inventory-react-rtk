@@ -62,6 +62,11 @@ export default defineConfig({
                             priority: 10,
                         },
                         {
+                            name: "vendor-charts",
+                            test: /[\\/]node_modules[\\/](recharts|decimal\.js-light|es-toolkit|eventemitter3|tiny-invariant|victory-vendor|clsx)[\\/]/,
+                            priority: 7,
+                        },
+                        {
                             name: "vendor-zod",
                             test: /[\\/]node_modules[\\/]zod[\\/]/,
                             priority: 6,
