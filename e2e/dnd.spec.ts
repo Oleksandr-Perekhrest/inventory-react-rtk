@@ -1,8 +1,9 @@
 // outsource dependencies
-import { test, expect, type Locator } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
 // local dependencies
 import { dragOnto } from "./support/dnd.ts";
+import { readTreeItemCount } from "./support/tree.ts";
 
 // Pastry and Bread are sibling leaf categories under Food > Bakery. Opening the
 // catalog at ?categoryId=cat-pastry auto-expands their ancestors, so both
@@ -12,13 +13,6 @@ const CATEGORY_A_ID = "cat-pastry";
 const CATEGORY_A = "Pastry";
 const CATEGORY_B = "Bread";
 const PRODUCT = "Butter Croissant";
-
-async function readTreeItemCount(item: Locator): Promise<number> {
-    const text = (await item.innerText()).trim();
-    const match = text.match(/(\d+)\s*$/);
-    if (!match) throw new Error(`No trailing count in "${text}"`);
-    return parseInt(match[1], 10);
-}
 
 test("dragging a product onto another category moves it", async ({ page }) => {
     await page.goto(`/catalog?categoryId=${CATEGORY_A_ID}`);
