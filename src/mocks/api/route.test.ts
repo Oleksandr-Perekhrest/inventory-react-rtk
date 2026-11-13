@@ -36,6 +36,7 @@ const network: NetworkConfig = {
     errorRate: 0.2,
     errorMode: () => errorModeState,
     random: () => randomImpl(),
+    failRequests: () => [],
 };
 
 const route = createRouteHandler({ db, network });
@@ -166,6 +167,7 @@ describe("delay", () => {
             errorRate: 0,
             errorMode: () => "off",
             random: () => 0.5,
+            failRequests: () => [],
         };
         const delayRoute = createRouteHandler({ db, network: delayNetwork });
         server.use(
