@@ -16,11 +16,10 @@ const LINK_CLASS =
 type MetricCardProps = {
     label: string;
     value: ReactNode;
-    link?: { search?: { stock: "low" | "out" } };
 };
 
-function MetricCard({ label, value, link }: MetricCardProps) {
-    const card = (
+function MetricCard({ label, value }: MetricCardProps) {
+    return (
         <Card className="h-full rounded-sm">
             <CardHeader>
                 <p className="text-sm font-medium text-muted-foreground">
@@ -33,24 +32,6 @@ function MetricCard({ label, value, link }: MetricCardProps) {
                 </div>
             </CardContent>
         </Card>
-    );
-
-    if (link === undefined) {
-        return card;
-    }
-
-    if (link.search !== undefined) {
-        return (
-            <Link to="/catalog" search={link.search} className={LINK_CLASS}>
-                {card}
-            </Link>
-        );
-    }
-
-    return (
-        <Link to="/catalog" className={LINK_CLASS}>
-            {card}
-        </Link>
     );
 }
 
@@ -96,17 +77,23 @@ export function MetricCards() {
             <div className="col-span-3 lg:col-span-1">
                 <MetricCard label="Stock value" value={values.stockValue} />
             </div>
-            <MetricCard
-                label="Low stock"
-                value={values.lowStock}
-                link={{ search: { stock: "low" } }}
-            />
-            <MetricCard
-                label="Out of stock"
-                value={values.outOfStock}
-                link={{ search: { stock: "out" } }}
-            />
-            <MetricCard label="Products" value={values.products} link={{}} />
+            <Link
+                to="/catalog"
+                search={{ stock: "low" }}
+                className={LINK_CLASS}
+            >
+                <MetricCard label="Low stock" value={values.lowStock} />
+            </Link>
+            <Link
+                to="/catalog"
+                search={{ stock: "out" }}
+                className={LINK_CLASS}
+            >
+                <MetricCard label="Out of stock" value={values.outOfStock} />
+            </Link>
+            <Link to="/catalog" className={LINK_CLASS}>
+                <MetricCard label="Products" value={values.products} />
+            </Link>
         </div>
     );
 }
