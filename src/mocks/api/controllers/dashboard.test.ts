@@ -39,41 +39,29 @@ describe("getDashboard", () => {
         expect(result.body.outOfStockCount).toBe(expectedOut);
     });
 
-    it("runningLow: at most 5 items, every item is low or out, sorted by ratio asc with ties by name", () => {
+    it("runningLow ids on seed db equal the first Math.min(5, low + out) independently sorted products", () => {
         const result = getDashboard({ db });
-        const { runningLow } = result.body;
+        const products = [...db.products];
 
-        expect(runningLow.length).toBeLessThanOrEqual(5);
+        const eligible = products
+            .filter((p) => {
+                const s = stockStatus(p);
+                return s === "low" || s === "out";
+            })
+            .sort((a, b) => {
+                const ratioA =
+                    a.minQuantity === 0 ? 0 : a.quantity / a.minQuantity;
+                const ratioB =
+                    b.minQuantity === 0 ? 0 : b.quantity / b.minQuantity;
+                if (ratioA !== ratioB) return ratioA - ratioB;
+                return a.name.localeCompare(b.name);
+            });
 
-        for (const p of runningLow) {
-            const s = stockStatus(p);
-            expect(s === "low" || s === "out").toBe(true);
-        }
+        const expectedIds = eligible
+            .slice(0, Math.min(5, eligible.length))
+            .map((p) => p.id);
 
-        for (let i = 0; i < runningLow.length - 1; i++) {
-            const a = runningLow[i];
-            const b = runningLow[i + 1];
-            const ratioA = a.minQuantity === 0 ? 0 : a.quantity / a.minQuantity;
-            const ratioB = b.minQuantity === 0 ? 0 : b.quantity / b.minQuantity;
-            if (ratioA !== ratioB) {
-                expect(ratioA).toBeLessThan(ratioB);
-            } else {
-                expect(a.name.localeCompare(b.name)).toBeLessThanOrEqual(0);
-            }
-        }
-
-        const hasOut = runningLow.some((p) => stockStatus(p) === "out");
-        const hasLow = runningLow.some((p) => stockStatus(p) === "low");
-        if (hasOut && hasLow) {
-            let lastOutIdx = -1;
-            let firstLowIdx = runningLow.length;
-            for (let i = 0; i < runningLow.length; i++) {
-                const s = stockStatus(runningLow[i]);
-                if (s === "out") lastOutIdx = i;
-                if (s === "low" && i < firstLowIdx) firstLowIdx = i;
-            }
-            expect(lastOutIdx).toBeLessThan(firstLowIdx);
-        }
+        expect(result.body.runningLow.map((p) => p.id)).toEqual(expectedIds);
     });
 
     it("daily has exactly 30 entries with consecutive local dates oldest first, last equals toLocalIsoDate of now", () => {
@@ -294,6 +282,101 @@ describe("getDashboard", () => {
 
             const after = getDashboard({ db: mutableDb });
             expect(after.body.daily).toEqual(before.body.daily);
+        });
+
+        it("runningLow: 2 out and 4 low with distinct ratios gives exact id order, lowStockCount 4, outOfStockCount 2", () => {
+            const p0 = mutableDb.products[0];
+            const p1 = mutableDb.products[1];
+            const p2 = mutableDb.products[2];
+            const p3 = mutableDb.products[3];
+            const p4 = mutableDb.products[4];
+            const p5 = mutableDb.products[5];
+
+            mutableDb.transaction((draft) => {
+                for (const p of draft.products) {
+                    p.quantity = p.minQuantity + 1;
+                }
+                // 2 out products (quantity 0)
+                draft.products[0].quantity = 0;
+                draft.products[1].quantity = 0;
+                // 4 low products with distinct ratios
+                draft.products[2].minQuantity = 100;
+                draft.products[2].quantity = 80; // ratio 0.8
+                draft.products[3].minQuantity = 100;
+                draft.products[3].quantity = 20; // ratio 0.2
+                draft.products[4].minQuantity = 100;
+                draft.products[4].quantity = 50; // ratio 0.5
+                draft.products[5].minQuantity = 100;
+                draft.products[5].quantity = 35; // ratio 0.35
+            });
+
+            // Expected order: out products by name, then low by ratio asc, sliced to 5
+            const sortedOut = [p0, p1].sort((a, b) =>
+                a.name.localeCompare(b.name),
+            );
+            const sortedLow = [
+                { id: p2.id, name: p2.name, ratio: 0.8 },
+                { id: p3.id, name: p3.name, ratio: 0.2 },
+                { id: p4.id, name: p4.name, ratio: 0.5 },
+                { id: p5.id, name: p5.name, ratio: 0.35 },
+            ].sort((a, b) => a.ratio - b.ratio || a.name.localeCompare(b.name));
+
+            const expectedIds = [
+                ...sortedOut.map((p) => p.id),
+                ...sortedLow.map((x) => x.id),
+            ].slice(0, 5);
+
+            const result = getDashboard({ db: mutableDb });
+
+            expect(result.body.runningLow.map((p) => p.id)).toEqual(
+                expectedIds,
+            );
+            expect(result.body.lowStockCount).toBe(4);
+            expect(result.body.outOfStockCount).toBe(2);
+        });
+
+        it("a receipt at local midnight of the oldest window day is counted in daily[0].inflow", () => {
+            const { daily } = getDashboard({ db: mutableDb }).body;
+            const oldestDate = daily[0].date;
+            const [y, m, d] = oldestDate.split("-").map(Number);
+            const midnightLocal = new Date(y, m - 1, d);
+
+            const priceMap = new Map(
+                [...mutableDb.products].map((p) => [p.id, p.price]),
+            );
+
+            let rawInflowOldest = 0;
+            for (const mov of mutableDb.movements) {
+                if (toLocalIsoDate(new Date(mov.date)) !== oldestDate) continue;
+                const price = priceMap.get(mov.productId) ?? 0;
+                if (mov.type === "receipt") {
+                    rawInflowOldest += mov.quantity * price;
+                }
+            }
+
+            const product = mutableDb.products.find((p) => p.unit === "pcs");
+            expect(product).toBeDefined();
+            if (product === undefined) return;
+
+            const qty = 5;
+            const expectedInflow = Math.round(
+                rawInflowOldest + qty * product.price,
+            );
+
+            mutableDb.transaction((draft) => {
+                draft.movements.push({
+                    id: "mov-test-boundary-001",
+                    type: "receipt",
+                    productId: product.id,
+                    quantity: qty,
+                    date: midnightLocal.toISOString(),
+                    reference: "BOUNDARY-001",
+                    supplierId: "sup-001",
+                });
+            });
+
+            const result = getDashboard({ db: mutableDb });
+            expect(result.body.daily[0].inflow).toBe(expectedInflow);
         });
     });
 });
