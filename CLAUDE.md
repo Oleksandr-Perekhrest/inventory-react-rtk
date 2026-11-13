@@ -23,7 +23,7 @@ Node 24 is the shell default (nvm alias). Run `pnpm` commands directly; do not s
 
 | Layer            | Choice                                                                                                          |
 | ---------------- | --------------------------------------------------------------------------------------------------------------- |
-| Build / Language | Vite, React 19, TypeScript 6 (strict), pnpm                                                                     |
+| Build / Language | Vite, React 19, TypeScript 6 (strict by default; not set in tsconfig.app.json), pnpm                            |
 | State            | Redux Toolkit + RTK Query (server data via RTK Query with cache tags; client state in slices)                   |
 | Styling / UI     | Tailwind CSS + shadcn/ui                                                                                        |
 | Forms            | TanStack Form + zod                                                                                             |
@@ -82,7 +82,6 @@ import { formatPrice } from "../../utils/format";
 - Use theme tokens through Tailwind classes (`bg-card`, `text-muted-foreground`, `bg-warning`, ...). No hex values or arbitrary colors in components.
 - `font-sans` (IBM Plex Sans) for text; `font-mono` (IBM Plex Mono) for SKUs, numbers, breadcrumbs, table headers and status badges.
 - Corners: `rounded-sm` for panels and controls.
-- Reference screen: `/design-preview` (`src/components/design-preview/`) shows the catalog layout, panel and table header styles, the stock meter and the LOW/OUT badges. New screens follow it. It is static and will be removed when the real catalog replaces it: never import from it.
 - **Layout:** `SidebarInset` is the scroll container (`h-dvh overflow-y-auto`); the window does not scroll. Pages that fill the visible height use `src/components/layout/FullHeightPage` (header / children / footer). Tables inside them: card `flex-1 min-h-0 overflow-hidden`, `Table` `containerClassName="h-full overflow-auto"`, sticky header row with an opaque background.
 - **Shared UI:** `TablePagination` (`src/components`) for paginated tables, with a thin per-feature wrapper for prefetch and the out-of-range redirect; `ProductCombobox` lives in `src/components`.
 

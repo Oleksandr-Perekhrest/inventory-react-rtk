@@ -3,7 +3,9 @@ import { test, expect } from "@playwright/test";
 
 test("/ shows the welcome page", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(
+        page.getByRole("heading", { level: 1, name: "Warehouse Manager" }),
+    ).toBeVisible();
 });
 
 test("/catalog loads data through MSW in the production build", async ({
