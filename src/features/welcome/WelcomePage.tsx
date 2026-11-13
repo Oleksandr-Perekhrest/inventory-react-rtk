@@ -1,12 +1,19 @@
 // outsource dependencies
 import { ExternalLink } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Link, type LinkProps } from "@tanstack/react-router";
 
 // local dependencies
 import { Button } from "@/components/ui/button";
+import { navIcons } from "@/components/layout/navItems";
 import { Card, CardTitle, CardHeader, CardContent } from "@/components/ui/card";
 
-type TryCard = { to: LinkProps["to"]; title: string; description: string };
+type TryCard = {
+    to: LinkProps["to"];
+    title: string;
+    description: string;
+    icon: LucideIcon;
+};
 
 const tryCards: TryCard[] = [
     {
@@ -14,24 +21,28 @@ const tryCards: TryCard[] = [
         title: "Receive goods",
         description:
             "Post a receipt, then see the dashboard and the journal update without reloading.",
+        icon: navIcons.receiving,
     },
     {
         to: "/catalog",
         title: "Organize the catalog",
         description:
             "Drag a category or a product in the tree, or filter the table by low stock.",
+        icon: navIcons.catalog,
     },
     {
         to: "/movements",
         title: "Trace movements",
         description:
             "Filter by type, product and dates, then copy the URL: the filters travel with it.",
+        icon: navIcons.movements,
     },
     {
         to: "/dashboard",
         title: "Check the dashboard",
         description:
             "Stock value, low-stock products and 30 days of inflow and outflow.",
+        icon: navIcons.dashboard,
     },
 ];
 
@@ -49,19 +60,27 @@ export function WelcomePage() {
             <section className="space-y-4">
                 <h2 className="text-xl font-semibold">What to try</h2>
                 <div className="grid gap-4 md:grid-cols-2">
-                    {tryCards.map((card) => (
+                    {tryCards.map(({ to, title, description, icon: Icon }) => (
                         <Link
-                            key={String(card.to)}
-                            to={card.to}
-                            className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                            key={String(to)}
+                            to={to}
+                            className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                         >
-                            <Card className="h-full">
+                            <Card className="h-full rounded-sm">
                                 <CardHeader>
-                                    <CardTitle>{card.title}</CardTitle>
+                                    <CardTitle>
+                                        <div className="flex items-center gap-2">
+                                            <Icon
+                                                aria-hidden="true"
+                                                className="size-5 shrink-0 text-muted-foreground"
+                                            />
+                                            {title}
+                                        </div>
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-muted-foreground">
-                                        {card.description}
+                                        {description}
                                     </p>
                                 </CardContent>
                             </Card>
