@@ -151,6 +151,7 @@ Tests run against the production build (`vite preview`, port 4173) with MSW acti
 - Work on the current branch; never switch branches.
 - Do not add dependencies the task does not ask for.
 - For library and GitHub Action versions, check current releases (e.g. `pnpm view <pkg> version`, `gh release view --repo <owner/action>`) instead of relying on memory.
+- Accessibility: `e2e/a11y.spec.ts` runs axe (WCAG 2.1 A/AA) on every page and key dialog with zero violations allowed; a new page or dialog gets a state there. Scan only after data has rendered (wait for a data-dependent element, not a static label: skeletons pass axe). Forced API failures for E2E: `setFailRequests` in `e2e/support/network.ts`.
 - Before reporting, run the available checks: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`.
 - Report format: files changed (one line each), check results, anything skipped or not done.
 - Wizard UI tests start from a draft pre-seeded in storage at the target step (see `ReceivingWizard.posting.test.tsx`) instead of typing through earlier steps.

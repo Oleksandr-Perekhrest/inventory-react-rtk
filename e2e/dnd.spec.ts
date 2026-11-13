@@ -4,6 +4,7 @@ import { test, expect } from "@playwright/test";
 // local dependencies
 import { dragOnto } from "./support/dnd.ts";
 import { readTreeItemCount } from "./support/tree.ts";
+import { setFailRequests } from "./support/network.ts";
 
 // Pastry and Bread are sibling leaf categories under Food > Bakery. Opening the
 // catalog at ?categoryId=cat-pastry auto-expands their ancestors, so both
@@ -61,16 +62,7 @@ test("a failed move rolls back", async ({ page }) => {
 
     // Merge into the existing network settings so the mock layer returns 500
     // for PATCH /api/products/<id>, forcing the optimistic move to roll back.
-    await page.evaluate(() => {
-        const KEY = "warehouse-manager:network";
-        const raw = localStorage.getItem(KEY);
-        const parsed: Record<string, unknown> =
-            raw && typeof JSON.parse(raw) === "object"
-                ? (JSON.parse(raw) as Record<string, unknown>)
-                : {};
-        parsed.failRequests = ["PATCH /api/products/*"];
-        localStorage.setItem(KEY, JSON.stringify(parsed));
-    });
+    await setFailRequests(page, ["PATCH /api/products/*"]);
 
     await dragOnto(page, productRow, categoryB);
 
