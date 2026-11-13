@@ -20,19 +20,20 @@ Node 24 is the shell default (nvm alias). Run `pnpm` commands directly; do not s
 
 ## Stack
 
-| Layer            | Choice                                                                                        |
-| ---------------- | --------------------------------------------------------------------------------------------- |
-| Build / Language | Vite, React 19, TypeScript 6 (strict), pnpm                                                   |
-| State            | Redux Toolkit + RTK Query (server data via RTK Query with cache tags; client state in slices) |
-| Styling / UI     | Tailwind CSS + shadcn/ui                                                                      |
-| Forms            | TanStack Form + zod                                                                           |
-| Drag and drop    | dnd-kit                                                                                       |
-| Tables           | TanStack Table (server-side mode)                                                             |
-| Routing          | TanStack Router                                                                               |
-| Mock API         | MSW — enabled in dev, tests, and the production build (no backend)                            |
-| Unit tests       | Vitest + React Testing Library + MSW                                                          |
-| E2E              | Playwright                                                                                    |
-| Hosting          | Vercel                                                                                        |
+| Layer            | Choice                                                                                                          |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| Build / Language | Vite, React 19, TypeScript 6 (strict), pnpm                                                                     |
+| State            | Redux Toolkit + RTK Query (server data via RTK Query with cache tags; client state in slices)                   |
+| Styling / UI     | Tailwind CSS + shadcn/ui                                                                                        |
+| Forms            | TanStack Form + zod                                                                                             |
+| Drag and drop    | dnd-kit                                                                                                         |
+| Tables           | TanStack Table (server-side mode)                                                                               |
+| Routing          | TanStack Router                                                                                                 |
+| Charts           | Recharts 3 through the shadcn `ChartContainer` / `ChartTooltipContent` wrappers (`src/components/ui/chart.tsx`) |
+| Mock API         | MSW — enabled in dev, tests, and the production build (no backend)                                              |
+| Unit tests       | Vitest + React Testing Library + MSW                                                                            |
+| E2E              | Playwright                                                                                                      |
+| Hosting          | Vercel                                                                                                          |
 
 > TypeScript 7 is intentionally not used: typescript-eslint does not support it yet.
 
@@ -98,6 +99,7 @@ import { formatPrice } from "../../utils/format";
 
 `src/store/store.ts` — `makeStore()` wires the api reducer and middleware, calls `setupListeners`. `src/store/hooks.ts` — typed `useAppDispatch` and `useAppSelector` via `withTypes`.
 
+- **GET /api/dashboard** is a server-side aggregate: stock value, low-stock and out-of-stock counts, running-low top 5 products (sorted by stock ratio then name), and 30 daily `{ date, inflow, outflow }` entries. It provides `{ type: "Product", id: "LIST" }` and `{ type: "Movement", id: "LIST" }` tags, so receipts, product edits, moves, and demo reset all refetch it. Values use the current product price — there is no price history. Inflow counts receipts; outflow counts shipments and write-offs; adjustments are excluded. Days are local calendar days via `toLocalIsoDate`, matching the journal date-filter rule. `stockStatus` (`src/domain`) is the single source of truth for the low/out rule — shared by the catalog table, the catalog filter, and the dashboard.
 - Mutations: `invalidatesTags` returns `[]` on error (never invalidate on a failed write).
 - Movement dates from a local date + "now": use `combineLocalDateWithTime` (`src/lib/date.ts`), never `date + toISOString().slice(10)`.
 - **Dates:** movement dates are stored as UTC ISO strings; filters and display use the user's local date (`toLocalIsoDate`, `formatLocalDate`). Never parse a date-only string with `new Date("YYYY-MM-DD")` — it is interpreted as UTC.
@@ -123,6 +125,14 @@ ANALYZE=1 pnpm build   # writes stats.html (gitignored)
 
 Open `stats.html` in a browser to see the interactive treemap. Main browser-chunk cost: `tldts` (TLD trie from MSW's `tough-cookie`) ≈ 111 KB gz, Zod ≈ 34 KB gz, `@mswjs/interceptors` ≈ 24 KB gz. The 500 kB build warning for the lazy `browser-*.js` chunk is expected — MSW pulls in `tldts` through `tough-cookie`; a 500 kB warning on any other chunk is a real problem.
 
+The `vendor-charts` group captures recharts and its own dependencies (decimal.js-light, es-toolkit, eventemitter3, tiny-invariant, victory-vendor, clsx). Recharts shares `@reduxjs/toolkit`, `react-redux`, and `immer` with `vendor-redux` — those must not be pulled into `vendor-charts`. Recharts pins an exact reselect version, so one extra reselect copy (≈ 1 KB gz) ends up in `vendor-redux`; this is accepted. `vendor-charts` is lazy and loads only when the dashboard route is first visited.
+
+## Dashboard and welcome page
+
+- `/` is the welcome page (no redirect from root to dashboard). `/dashboard` is the dashboard.
+- Navigation order and icons are defined in `src/components/layout/navItems.ts`. `navIcons` is the single source of truth for route icons — reuse it in any component that needs an icon for a nav destination (e.g. the welcome page try-cards). The Welcome nav item uses `exact: true` so it does not stay active on child routes.
+- **Shared badges:** `StockBadge` (`src/components/StockBadge.tsx`) renders LOW/OUT badges for a `StockStatus`; `MovementTypeBadge` (`src/components/MovementTypeBadge.tsx`) renders a colored badge for a `MovementType`. Both are used by the dashboard panels and the movements journal.
+
 ## Receiving wizard
 
 - **Step validation:** validation issues with an empty field path go to the form-level error (`{ form, fields }`), never to a parent array field like `"lines"` — a parent-field `onSubmit` error is not cleared by editing child fields and permanently blocks the next submit.
@@ -145,3 +155,5 @@ Open `stats.html` in a browser to see the interactive treemap. Main browser-chun
 - MSW 3: `server.listen({ onUnhandledFrame: "error" })` (`onUnhandledRequest` was renamed to `onUnhandledFrame`).
 - Page sizes and counts in tests come from the `DEFAULTS` constants and the db, never from literals like `20`.
 - When the same button exists in both the toolbar and an empty/error state, scope the query with `within()` on the state the scenario is testing.
+- In jsdom the chart container has zero size and Recharts draws no bars. Chart tests assert the `role="img"` element's `aria-label` (which carries the total values), not SVG content.
+- Dashboard tests compute expected metric values independently from the db state (e.g. sum products, filter by `stockStatus`) rather than asserting literal numbers.

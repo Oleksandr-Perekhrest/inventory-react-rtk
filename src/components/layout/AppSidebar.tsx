@@ -25,12 +25,14 @@ function NavLink({
     to,
     label,
     icon: Icon,
+    exact,
 }: {
     to: LinkProps["to"];
     label: string;
     icon: LucideIcon;
+    exact?: boolean;
 }) {
-    const isActive = useActiveNav(to);
+    const isActive = useActiveNav(to, exact);
     return (
         <SidebarMenuItem>
             <SidebarMenuButton

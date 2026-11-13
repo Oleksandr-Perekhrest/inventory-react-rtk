@@ -37,6 +37,16 @@ export const ProductSchema = z
 
 export type Product = z.infer<typeof ProductSchema>;
 
+export const StockStatusSchema = z.enum(["ok", "low", "out"]);
+export type StockStatus = z.infer<typeof StockStatusSchema>;
+
+export function stockStatus(product: Product): StockStatus {
+    if (product.quantity === 0) return "out";
+    if (product.quantity > 0 && product.quantity < product.minQuantity)
+        return "low";
+    return "ok";
+}
+
 export function formatUnit(unit: Unit): string {
     return unit === "l" ? "L" : unit;
 }

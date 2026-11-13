@@ -13,7 +13,8 @@ export function useActiveNavItem(): {
 } | null {
     const matchRoute = useMatchRoute();
     return (
-        navItems.find((item) => !!matchRoute({ to: item.to, fuzzy: true })) ??
-        null
+        navItems.find(
+            (item) => !!matchRoute({ to: item.to, fuzzy: !item.exact }),
+        ) ?? null
     );
 }

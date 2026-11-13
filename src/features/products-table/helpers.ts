@@ -1,12 +1,5 @@
 // local dependencies
-import { type Unit, formatUnit, type Product } from "@/domain";
-
-export function stockStatus(product: Product): "out" | "low" | "ok" {
-    if (product.quantity === 0) return "out";
-    if (product.quantity > 0 && product.quantity < product.minQuantity)
-        return "low";
-    return "ok";
-}
+import { type Unit, formatUnit } from "@/domain";
 
 const priceFormatter = new Intl.NumberFormat("en-US", {
     style: "currency",

@@ -8,6 +8,7 @@ import { createRouteHandler } from "./route";
 import { demoReset } from "./controllers/demo";
 import type { NetworkConfig } from "./network";
 import { postReceipt } from "./controllers/receipts";
+import { getDashboard } from "./controllers/dashboard";
 import { listMovements } from "./controllers/movements";
 import { listSuppliers } from "./controllers/suppliers";
 import { receiptPayloadSchema } from "../../domain/receiving";
@@ -21,6 +22,7 @@ import {
     updateProductController,
 } from "./controllers/products";
 import {
+    dashboardQuerySchema,
     movementsQuerySchema,
     suppliersQuerySchema,
     categoriesQuerySchema,
@@ -72,6 +74,10 @@ export function createHandlers({
             route(updateProductController, {
                 bodySchema: updateProductBodySchema,
             }),
+        ),
+        http.get(
+            "/api/dashboard",
+            route(getDashboard, { querySchema: dashboardQuerySchema }),
         ),
         http.get(
             "/api/movements",

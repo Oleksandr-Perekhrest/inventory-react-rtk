@@ -1,8 +1,9 @@
 // outsource dependencies
-import { redirect, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+
+// local dependencies
+import { WelcomePage } from "@/features/welcome/WelcomePage";
 
 export const Route = createFileRoute("/")({
-    beforeLoad: () => {
-        throw redirect({ to: "/catalog" });
-    },
+    component: WelcomePage,
 });

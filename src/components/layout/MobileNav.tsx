@@ -19,13 +19,15 @@ function MobileNavLink({
     label,
     icon: Icon,
     onNavigate,
+    exact,
 }: {
     to: LinkProps["to"];
     label: string;
     icon: LucideIcon;
     onNavigate: () => void;
+    exact?: boolean;
 }) {
-    const isActive = useActiveNav(to);
+    const isActive = useActiveNav(to, exact);
     return (
         <Link
             to={to}

@@ -6,10 +6,11 @@ import {
 } from "@tanstack/react-table";
 
 // local dependencies
-import type { Product } from "@/domain";
 import { CategoryCell } from "./CategoryCell";
+import { stockStatus, type Product } from "@/domain";
+import { StockBadge } from "@/components/StockBadge";
+import { formatPrice, formatQuantity } from "./helpers";
 import { ProductActionsMenu } from "./ProductActionsMenu";
-import { stockStatus, formatPrice, formatQuantity } from "./helpers";
 
 export const features = tableFeatures({ rowSortingFeature });
 
@@ -52,16 +53,7 @@ export const columns = columnHelper.columns([
                     <span className="font-mono tabular-nums">
                         {formatQuantity(info.getValue(), product.unit)}
                     </span>
-                    {status === "out" && (
-                        <span className="rounded-sm bg-stock-out px-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-stock-out-foreground">
-                            Out
-                        </span>
-                    )}
-                    {status === "low" && (
-                        <span className="rounded-sm bg-warning px-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-warning-foreground">
-                            Low
-                        </span>
-                    )}
+                    <StockBadge status={status} />
                 </div>
             );
         },
