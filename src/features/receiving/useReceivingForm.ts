@@ -4,12 +4,14 @@ import { useForm } from "@tanstack/react-form";
 
 // local dependencies
 import { toLocalIsoDate } from "@/lib/date";
-import { useAppStore } from "@/store/hooks";
 import { productsApi } from "@/api/endpoints/products";
+import type { AppStore, AppDispatch } from "@/store/store";
+import { useAppStore, useAppDispatch } from "@/store/hooks";
 import {
     getNextStep,
     type ReceiptDraft,
     type ReceivingStep,
+    type ReceiptLineDraft,
     createLinesStepSchema,
     createDocumentStepSchema,
     createReconciliationStepSchema,
@@ -46,6 +48,31 @@ function mapIssuesToResult(
         return undefined;
     }
     return { form: formError, fields };
+}
+
+async function prefetchMissingProducts(
+    store: AppStore,
+    dispatch: AppDispatch,
+    lines: ReceiptLineDraft[],
+): Promise<void> {
+    const missing = new Set<string>();
+    for (const line of lines) {
+        if (!line.productId) continue;
+        const cached = productsApi.endpoints.getProduct.select(line.productId)(
+            store.getState(),
+        ).data;
+        if (cached === undefined) missing.add(line.productId);
+    }
+    if (missing.size === 0) return;
+    await Promise.all(
+        Array.from(missing).map((id) =>
+            dispatch(
+                productsApi.endpoints.getProduct.initiate(id, {
+                    subscribe: false,
+                }),
+            ),
+        ),
+    );
 }
 
 function validateCurrentStep(
@@ -98,6 +125,7 @@ export function useReceivingForm({
 }: UseReceivingFormOptions) {
     const failedStepsRef = useRef<Set<ReceivingStep>>(new Set());
     const store = useAppStore();
+    const dispatch = useAppDispatch();
 
     function getProduct(id: string) {
         return productsApi.endpoints.getProduct.select(id)(store.getState())
@@ -111,7 +139,13 @@ export function useReceivingForm({
                 if (!failedStepsRef.current.has(value.step)) return undefined;
                 return validateCurrentStep(value, supplierExists, getProduct);
             },
-            onSubmit: ({ value }) => {
+            // Load any line products missing from the cache (selected product +
+            // async fetch not yet resolved, or restored draft on a cold cache)
+            // before running the existing sync validation. Using onSubmitAsync
+            // only — a sync onSubmit would short-circuit the async pass when it
+            // errors with "Product not found" before the fetch has a chance to run.
+            onSubmitAsync: async ({ value }) => {
+                await prefetchMissingProducts(store, dispatch, value.lines);
                 return validateCurrentStep(value, supplierExists, getProduct);
             },
         },
