@@ -2,6 +2,7 @@
 import { test, expect } from "@playwright/test";
 
 // local dependencies
+import { localIsoDate } from "./support/date.ts";
 import { parseQuantity, getColumnIndex } from "./support/table.ts";
 
 // Orange Juice 1 L: perishable=false, unit="pcs" — no batch/expiry fields to fill,
@@ -25,20 +26,22 @@ test("posting a receipt with a discrepancy updates stock and the journal", async
     await page.getByRole("combobox", { name: "Supplier" }).click();
     await page.getByRole("option").first().click();
     await page.getByLabel("Invoice number").fill("E2E-001");
-    // Date is prefilled with today; fill it only if the field is empty.
+    // createEmptyDraft always prefills today's local date (useReceivingForm.ts).
     const dateInput = page.getByLabel("Date");
-    if (!(await dateInput.inputValue())) {
-        const today = new Date();
-        const pad = (n: number) => String(n).padStart(2, "0");
-        await dateInput.fill(
-            `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`,
-        );
-    }
+    await expect(dateInput).toHaveValue(localIsoDate(new Date()));
     await page.getByRole("button", { name: "Next" }).click();
 
     // ── Lines step ───────────────────────────────────────────────────────────
     await page.getByLabel("Product").fill(PRODUCT_NAME);
     await page.getByRole("option", { name: PRODUCT_NAME }).click();
+    // LineUnitSuffix renders the unit text only once useGetProductQuery resolves.
+    // The lines-step "Next" validation calls getProduct() against the Redux store;
+    // if that response hasn't arrived yet, it returns undefined and validation
+    // fails with "Product not found". Waiting here ensures the cache is populated.
+    const expectedQtyWrap = page
+        .getByLabel("Expected quantity")
+        .locator("xpath=..");
+    await expect(expectedQtyWrap.getByText("pcs")).toBeVisible();
     await page.getByLabel("Expected quantity").fill("7");
     await page.getByRole("button", { name: "Next" }).click();
 
@@ -64,18 +67,34 @@ test("posting a receipt with a discrepancy updates stock and the journal", async
     const catalogRowAfter = page
         .getByRole("row")
         .filter({ hasText: PRODUCT_NAME });
-    // The quantity cell must show before + 5 without a manual page reload.
-    await expect(catalogRowAfter.getByRole("cell").nth(qIdx)).toContainText(
-        String(before + 5),
-    );
+    const cell = catalogRowAfter.getByRole("cell").nth(qIdx);
+    // Intl grouping means 1,285 ≠ "1285", so compare numerically via poll.
+    await expect
+        .poll(async () => parseQuantity(await cell.innerText()))
+        .toBe(before + 5);
 
     // ── Movements journal ────────────────────────────────────────────────────
     // Journal is sorted newest-first; the receipt (posted just now) is row 1.
     await page.goto("/movements");
-    const firstRow = page.getByRole("rowgroup").last().getByRole("row").first();
-    await expect(firstRow).toContainText(PRODUCT_NAME);
+    const tbody = page.getByRole("rowgroup").last();
+    const firstRow = tbody.getByRole("row").first();
+    await expect(firstRow).toBeVisible();
+
+    // MovementTypeBadge renders the enum value directly ({type}), so the DOM
+    // text is "receipt" (lowercase); CSS uppercase is applied visually only.
+    await expect(firstRow).toContainText("receipt");
+
+    // This receipt has a discrepancy (actual 5 ≠ expected 7), so MovementsTable
+    // calls formatDiscrepancyQuantity(5, 7, "pcs") = "5 / 7 pcs" + "Short"
+    // badge, NOT formatSignedQuantity. There is no "+5" text in a discrepancy row.
+    await expect(firstRow).toContainText("5 / 7 pcs");
+    await expect(firstRow).toContainText("Short");
+
+    // The expanded detail <tr> is a DOM sibling of the data row (not a child),
+    // rendered via Fragment immediately after it, so scope via "+" combinator.
     await firstRow
         .getByRole("button", { name: `Details: ${PRODUCT_NAME}` })
         .click();
-    await expect(page.getByText("2 damaged in transit")).toBeVisible();
+    const detailRow = firstRow.locator("+ tr");
+    await expect(detailRow.getByText("2 damaged in transit")).toBeVisible();
 });
