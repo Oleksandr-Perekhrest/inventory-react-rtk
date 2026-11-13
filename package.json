@@ -2,6 +2,11 @@
   "name": "inventory-react-rtk",
   "private": true,
   "version": "0.0.0",
+  "description": "An inventory admin demo for a small warehouse built with React 19, Redux Toolkit and RTK Query, with a mocked API.",
+  "homepage": "https://warehouse-manager-demo.vercel.app",
+  "repository": "https://github.com/Oleksandr-Perekhrest/inventory-react-rtk",
+  "license": "MIT",
+  "author": "Oleksandr Perekhrest",
   "type": "module",
   "scripts": {
     "prepare": "[ -n \"$CI\" ] || lefthook install",

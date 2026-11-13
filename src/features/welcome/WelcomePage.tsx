@@ -126,7 +126,7 @@ export function WelcomePage() {
                     <a
                         href="https://github.com/Oleksandr-Perekhrest/inventory-react-rtk"
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                     >
                         Source on GitHub
                         <ExternalLink aria-hidden="true" />
