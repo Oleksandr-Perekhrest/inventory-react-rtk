@@ -52,10 +52,11 @@ test("journal filters survive a reload and a shared link", async ({
         presetGroup.getByRole("button", { name: "Last 30 days" }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    // Every visible body row contains the receipt type badge text
     const tbody = page.getByRole("rowgroup").last();
     const rows = tbody.getByRole("row");
     const rowCount = await rows.count();
+    // The count text above has settled, so rows are rendered; an empty table would make the loop vacuous.
+    expect(rowCount).toBeGreaterThan(0);
     for (let i = 0; i < rowCount; i++) {
         await expect(rows.nth(i)).toContainText("receipt");
     }
