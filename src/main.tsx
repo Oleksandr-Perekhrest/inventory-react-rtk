@@ -6,10 +6,10 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 
 // local dependencies
 import "./index.css";
+import { routerDefaults } from "./router";
 import { makeStore } from "./store/store";
 import { routeTree } from "./routeTree.gen";
 import { setBackendReady } from "./api/backendReady";
-import { RouteError } from "./components/layout/RouteError";
 
 const store = makeStore();
 
@@ -18,7 +18,7 @@ const router = createRouter({
     context: { store },
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
-    defaultErrorComponent: RouteError,
+    ...routerDefaults,
 });
 
 declare module "@tanstack/react-router" {
