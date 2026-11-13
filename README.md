@@ -27,7 +27,7 @@ Demo data is generated on your first visit (dates are relative to that day) and 
 - Nested tree of categories with product counts (the seed covers four levels, from Food down to Hard Cheese); selecting a category auto-expands its ancestors.
 - Server-side paginated products table with sort on name, SKU, quantity and price.
 - Filter by name or SKU and by stock status (All / Low / Out). The `stockStatus` rule in `src/domain` is the single source of truth for Low and Out across the table, the filter and the dashboard.
-- Drag-and-drop in the tree: move a category under a new parent, or drag a product onto another category. Moves are applied optimistically and roll back on failure.
+- Moves work two ways: drag-and-drop in the tree (a category under a new parent, or a product onto another category) and a keyboard-accessible "Move to category…" dialog opened from the product row "⋯" menu and from the selected category header's "⋯" button. Moves are applied optimistically and roll back on failure.
 
 ### Receiving (`/receiving`)
 
@@ -77,7 +77,7 @@ Requests flow through **MSW handler → `route()` (network simulation, zod valid
 
 ### RTK Query cache tags and optimistic updates
 
-`src/api/baseApi.ts` declares four tag types — `Category`, `Product`, `Supplier`, `Movement`. Each list query provides `{ type, id: "LIST" }` plus one tag per item id, and mutations invalidate the smallest tag set that covers them. The two drag-and-drop mutations — moving a product to another category (`updateProduct`) and reparenting a category (`moveCategory`) — apply an optimistic `updateQueryData` patch to the affected caches in `onQueryStarted` and `undo()` the patch when the server rejects the write; they always invalidate their tags so the cache is reconciled with the server either way. The `postReceipt` mutation, by contrast, invalidates the receipt's product tags and `Movement` on success and returns `[]` on error, so a failed write never invalidates cached data. See `src/api/endpoints/`.
+`src/api/baseApi.ts` declares four tag types — `Category`, `Product`, `Supplier`, `Movement`. Each list query provides `{ type, id: "LIST" }` plus one tag per item id, and mutations invalidate the smallest tag set that covers them. The two move mutations — moving a product to another category (`updateProduct`) and reparenting a category (`moveCategory`) — apply an optimistic `updateQueryData` patch to the affected caches in `onQueryStarted` and `undo()` the patch when the server rejects the write; they always invalidate their tags so the cache is reconciled with the server either way. The `postReceipt` mutation, by contrast, invalidates the receipt's product tags and `Movement` on success and returns `[]` on error, so a failed write never invalidates cached data. See `src/api/endpoints/`.
 
 ### URL as the source of truth
 
