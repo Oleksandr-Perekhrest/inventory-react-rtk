@@ -11,6 +11,7 @@ pnpm preview        # serve the dist/ build locally
 pnpm lint           # run ESLint
 pnpm typecheck      # run tsc --noEmit
 pnpm test           # run Vitest
+pnpm test:e2e       # run Playwright E2E tests against the production build (vite preview, port 4173)
 pnpm format         # format with Prettier (write)
 pnpm format:check   # format with Prettier (check only)
 ```
@@ -139,6 +140,10 @@ The `vendor-charts` group captures recharts and its own dependencies (decimal.js
 - **Server field errors (e.g. 409 `DUPLICATE_INVOICE`):** keep them in React state on the wizard and render through `FormField`; do not write TanStack field meta from async callbacks — the field may not be registered if its step was never rendered in this session (restored draft).
 - **Focus after step change:** run in an effect after render (guarded by a ref), not in `queueMicrotask`.
 - **Leaving the wizard programmatically** (success, Discard, Reset demo data): call `innerRef.cancelSync()` first, then discard the draft, then remount via `formKey` — otherwise the unmount flush writes the stale draft back.
+
+## E2E
+
+Tests run against the production build (`vite preview`, port 4173) with MSW active via the service worker. `@playwright/test` is pinned exactly (no caret) and the CI container image tag must match it.
 
 ## Working rules
 

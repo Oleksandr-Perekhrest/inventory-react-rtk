@@ -6,7 +6,7 @@ import type { HttpResponseResolver } from "msw";
 // local dependencies
 import type { Db } from "../db";
 import { ApiError } from "./errors";
-import type { NetworkConfig } from "./network";
+import { matchesFailRule, type NetworkConfig } from "./network";
 
 type ControllerResult = { status?: number; body?: unknown } | null | void;
 
@@ -63,6 +63,21 @@ export function createRouteHandler({ db, network }: RouteHandlerConfig) {
                 await delay(ms);
             }
 
+            // --- deterministic fail rules ---
+            const url = new URL(request.url);
+            const failRules = network.failRequests();
+            if (
+                failRules.some((rule) =>
+                    matchesFailRule(request.method, url.pathname, rule),
+                )
+            ) {
+                return errorJson(
+                    500,
+                    "SIMULATED_FAILURE",
+                    "Simulated server error",
+                );
+            }
+
             // --- error simulation ---
             if (
                 network.errorMode() === "random" &&
@@ -79,7 +94,6 @@ export function createRouteHandler({ db, network }: RouteHandlerConfig) {
             }
 
             // --- parse query params ---
-            const url = new URL(request.url);
             let parsedQuery: InferOrUndefined<Q> =
                 undefined as InferOrUndefined<Q>;
 

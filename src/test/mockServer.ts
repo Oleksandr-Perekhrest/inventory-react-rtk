@@ -14,6 +14,7 @@ const testNetwork: NetworkConfig = {
     errorMode: () => "off",
     errorRate: 0,
     random: () => 0,
+    failRequests: () => [],
 };
 
 export function createMockServer() {
