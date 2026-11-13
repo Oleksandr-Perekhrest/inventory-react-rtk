@@ -30,13 +30,14 @@ const db = createDb({ storage: createMemoryStorage(), now: () => FIXED_NOW });
 
 let errorModeState: "off" | "random" = "off";
 let randomImpl = () => Math.random();
+let failRequestsState: string[] = [];
 
 const network: NetworkConfig = {
     delay: 0,
     errorRate: 0.2,
     errorMode: () => errorModeState,
     random: () => randomImpl(),
-    failRequests: () => [],
+    failRequests: () => failRequestsState,
 };
 
 const route = createRouteHandler({ db, network });
@@ -55,6 +56,7 @@ afterEach(() => {
     db.reset();
     errorModeState = "off";
     randomImpl = () => Math.random();
+    failRequestsState = [];
     vi.restoreAllMocks();
 });
 afterAll(() => server.close());
@@ -195,5 +197,36 @@ describe("POST /api/demo/reset", () => {
         const res = await fetch(`${BASE}/api/demo/reset`, { method: "POST" });
         expect(res.status).toBe(204);
         expect(db.products[0].name).toBe(originalName);
+    });
+});
+
+describe("fail rules", () => {
+    it("a matching rule returns 500 with error.code SIMULATED_FAILURE", async () => {
+        failRequestsState = ["GET /api/products"];
+        const res = await fetch(`${BASE}/api/products`);
+        expect(res.status).toBe(500);
+        const body: unknown = await res.json();
+        expect(body).toMatchObject({ error: { code: "SIMULATED_FAILURE" } });
+    });
+
+    it("control: a non-matching rule leaves the same request at 200", async () => {
+        failRequestsState = ["PATCH /api/products/*"];
+        const res = await fetch(`${BASE}/api/products`);
+        expect(res.status).toBe(200);
+    });
+
+    it("fail rules run before random errors: matching rule returns 500 and random stub called 0 times", async () => {
+        failRequestsState = ["GET /api/products"];
+        errorModeState = "random";
+        let calls = 0;
+        randomImpl = () => {
+            calls++;
+            return 0.99;
+        };
+        const res = await fetch(`${BASE}/api/products`);
+        expect(res.status).toBe(500);
+        const body: unknown = await res.json();
+        expect(body).toMatchObject({ error: { code: "SIMULATED_FAILURE" } });
+        expect(calls).toBe(0);
     });
 });
