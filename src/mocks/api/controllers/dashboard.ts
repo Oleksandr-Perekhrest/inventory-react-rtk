@@ -64,7 +64,7 @@ export function getDashboard({ db }: { db: Db }): { body: DashboardSummary } {
                 localDate,
                 (inflowMap.get(localDate) ?? 0) + m.quantity * price,
             );
-        } else {
+        } else if (m.type === "shipment" || m.type === "write-off") {
             outflowMap.set(
                 localDate,
                 (outflowMap.get(localDate) ?? 0) + Math.abs(m.quantity) * price,
