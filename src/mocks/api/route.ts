@@ -6,8 +6,7 @@ import type { HttpResponseResolver } from "msw";
 // local dependencies
 import type { Db } from "../db";
 import { ApiError } from "./errors";
-import { matchesFailRule } from "./network";
-import type { NetworkConfig } from "./network";
+import { matchesFailRule, type NetworkConfig } from "./network";
 
 type ControllerResult = { status?: number; body?: unknown } | null | void;
 

@@ -8,39 +8,30 @@ export type NetworkConfig = {
 
 const NETWORK_KEY = "warehouse-manager:network";
 
-export function getErrorMode(): "off" | "random" {
+function readNetworkSettings(): Record<string, unknown> {
     try {
         const raw = localStorage.getItem(NETWORK_KEY);
-        if (!raw) return "off";
+        if (!raw) return {};
         const parsed: unknown = JSON.parse(raw);
         if (
-            typeof parsed === "object" &&
-            parsed !== null &&
-            "errorMode" in parsed &&
-            (parsed as Record<string, unknown>)["errorMode"] === "random"
-        ) {
-            return "random";
-        }
-        return "off";
+            typeof parsed !== "object" ||
+            parsed === null ||
+            Array.isArray(parsed)
+        )
+            return {};
+        return parsed as Record<string, unknown>;
     } catch {
-        return "off";
+        return {};
     }
+}
+
+export function getErrorMode(): "off" | "random" {
+    return readNetworkSettings()["errorMode"] === "random" ? "random" : "off";
 }
 
 export function setErrorMode(mode: "off" | "random"): void {
     try {
-        const raw = localStorage.getItem(NETWORK_KEY);
-        let existing: Record<string, unknown> = {};
-        if (raw) {
-            try {
-                const parsed: unknown = JSON.parse(raw);
-                if (typeof parsed === "object" && parsed !== null) {
-                    existing = parsed as Record<string, unknown>;
-                }
-            } catch {
-                // ignore
-            }
-        }
+        const existing = readNetworkSettings();
         localStorage.setItem(
             NETWORK_KEY,
             JSON.stringify({ ...existing, errorMode: mode }),
@@ -74,17 +65,9 @@ export function matchesFailRule(
 
 // E2E tests set failRequests via localStorage to force failures on specific routes
 export function getFailRequests(): string[] {
-    try {
-        const raw = localStorage.getItem(NETWORK_KEY);
-        if (!raw) return [];
-        const parsed: unknown = JSON.parse(raw);
-        if (typeof parsed !== "object" || parsed === null) return [];
-        const val = (parsed as Record<string, unknown>)["failRequests"];
-        if (!Array.isArray(val)) return [];
-        return val.filter((item): item is string => typeof item === "string");
-    } catch {
-        return [];
-    }
+    const val = readNetworkSettings()["failRequests"];
+    if (!Array.isArray(val)) return [];
+    return val.filter((item): item is string => typeof item === "string");
 }
 
 export const defaultNetwork: NetworkConfig = {
