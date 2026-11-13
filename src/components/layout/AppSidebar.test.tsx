@@ -7,12 +7,11 @@ import { screen, waitFor } from "@testing-library/react";
 import { renderWithRouter } from "@/test/renderWithRouter";
 
 describe("AppSidebar navigation", () => {
-    it('"/" redirects to /catalog and shows the Catalog heading', async () => {
-        const { router } = await renderWithRouter("/");
+    it('"/" shows the Welcome page heading', async () => {
+        await renderWithRouter("/");
         expect(
-            await screen.findByRole("heading", { name: /catalog/i }),
+            await screen.findByRole("heading", { name: /warehouse manager/i }),
         ).toBeVisible();
-        expect(router.state.location.pathname).toBe("/catalog");
     });
 
     it('clicking "Movements" in the sidebar shows the Movements heading', async () => {

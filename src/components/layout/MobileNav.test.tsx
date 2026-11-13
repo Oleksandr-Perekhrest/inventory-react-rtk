@@ -49,7 +49,7 @@ describe("MobileNav breadcrumb", () => {
 });
 
 describe("MobileNav sheet", () => {
-    it("'Open menu' opens a dialog with all four links; the current one has aria-current='page'", async () => {
+    it("'Open menu' opens a dialog with all five links; the current one has aria-current='page'", async () => {
         const user = userEvent.setup();
         await renderWithRouter("/catalog");
         await user.click(screen.getByRole("button", { name: "Open menu" }));
@@ -58,6 +58,9 @@ describe("MobileNav sheet", () => {
             name: /catalog/i,
         });
         expect(catalogLink).toHaveAttribute("aria-current", "page");
+        expect(
+            within(dialog).getByRole("link", { name: /welcome/i }),
+        ).not.toHaveAttribute("aria-current", "page");
         expect(
             within(dialog).getByRole("link", { name: /receiving/i }),
         ).not.toHaveAttribute("aria-current", "page");
