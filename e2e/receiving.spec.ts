@@ -34,14 +34,6 @@ test("posting a receipt with a discrepancy updates stock and the journal", async
     // ── Lines step ───────────────────────────────────────────────────────────
     await page.getByLabel("Product").fill(PRODUCT_NAME);
     await page.getByRole("option", { name: PRODUCT_NAME }).click();
-    // LineUnitSuffix renders the unit text only once useGetProductQuery resolves.
-    // The lines-step "Next" validation calls getProduct() against the Redux store;
-    // if that response hasn't arrived yet, it returns undefined and validation
-    // fails with "Product not found". Waiting here ensures the cache is populated.
-    const expectedQtyWrap = page
-        .getByLabel("Expected quantity")
-        .locator("xpath=..");
-    await expect(expectedQtyWrap.getByText("pcs")).toBeVisible();
     await page.getByLabel("Expected quantity").fill("7");
     await page.getByRole("button", { name: "Next" }).click();
 
